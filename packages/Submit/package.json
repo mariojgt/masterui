@@ -1,0 +1,19 @@
+{
+    "name": "@masterui/submit",
+    "version": "0.1.6",
+    "description": "Daisy ui input using vue js",
+    "keywords": [
+        "example",
+        "package",
+        "tutorial"
+    ],
+    "module": "./index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mariojgt/zetaui.git"
+    },
+    "author": "mario jose goes tarosso",
+    "license": "MIT",
+    "private": false,
+    "gitHead": "c13a3e0af676d21a540e683bde8b4c1463847539"
+}
