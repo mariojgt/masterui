@@ -23,6 +23,8 @@
     "lerna": "^4.0.0",
     "postcss": "^8.4.7",
     "tailwindcss": "^3.0.24",
+    "@mdi/js": "^6.6.96",
+    "@jamescoyle/vue-icon": "^0.1.2",
     "vite": "^2.7.2"
   },
   "description": "laravel package",
