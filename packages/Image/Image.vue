@@ -119,6 +119,10 @@ const props = defineProps({
         type: String,
         default: "",
     },
+    loadData: {
+        type: Object,
+        default: null,
+    },
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -167,7 +171,11 @@ const removeMedia = async (index) => {
     emit("update:modelValue", selectedMedia);
 };
 
-
+onMounted(() => {
+    if (props.loadData) {
+        selectedMedia = props.loadData;
+    }
+})
 
 </script>
 
