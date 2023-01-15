@@ -170,7 +170,11 @@ const removeItem = async (index) => {
 
 onMounted(() => {
     if (props.loadData) {
-        selectedItem = props.loadData;
+        if (props.singleMode) {
+            selectedItem = [props.loadData];
+        } else {
+            selectedItem = props.loadData;
+        }
     }
 })
 
