@@ -21,10 +21,10 @@
         :single-mode="false"
     /> -->
 
-    <Image
+    <!-- <Image
         label="Select your skills"
         endpoint="http://skeleton.test/admin/admin/api/media/search"
-    />
+    /> -->
   </layout>
 </template>
 

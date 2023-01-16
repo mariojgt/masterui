@@ -29,7 +29,7 @@
         <!-- Show the selected items -->
         <div class="my-5">
             <div class="flex justify-between items-center border-b border-slate-200 py-3 px-2 border-l-4 border-l-transparent bg-gradient-to-r from-transparent to-transparent hover:from-base-300 transition ease-linear duration-150 text-base-content"
-                v-for="(item, index) in selectedMedia" :key="index">
+                v-for="(item, index) in selectedMedia" :key="index" @click="removeMedia(index)" >
                 <div class="inline-flex items-center space-x-2">
                     <div>
                         <div class="avatar">
