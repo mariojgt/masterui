@@ -51,15 +51,15 @@
 import axios from "axios";
 
 import { watch, onMounted, defineEmits } from "vue";
-import { usePage } from "@inertiajs/inertia-vue3";
+import { usePage } from "@inertiajs/vue3";
 
 let errorMessage = $ref(null);
 
 watch(
-    () => usePage().props?.value?.errors,
+    () => usePage().props?.errors,
     (v) => {
-        if (usePage().props.value.errors[props.name]) {
-            errorMessage = usePage().props.value.errors[props.name];
+        if (usePage().props.errors[props.name]) {
+            errorMessage = usePage().props.errors[props.name];
         }
     }
 );
