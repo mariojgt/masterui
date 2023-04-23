@@ -13,7 +13,7 @@
         <!-- Show the search results -->
         <ul class="menu bg-neutral-content w-full" v-if="availableItems.data">
             <li v-for="(item, index) in availableItems.data" :key="index" @click="addItem(item)">
-                <a class="hover:active">{{ item.name }}</a>
+                <a class="hover:active">{{ item[props.displayKey] }}</a>
             </li>
         </ul>
 
@@ -31,7 +31,7 @@
                         </svg>
 
                     </div>
-                    <div>{{ item.name }}</div>
+                    <div>{{ item[props.displayKey] }}</div>
                 </div>
                 <div @click="removeItem(index)" >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -105,6 +105,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    displayKey: {
+        type: String,
+        default: "name",
+    },
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -142,7 +146,7 @@ const addItem = async (item) => {
     if (selectedItem.indexOf(item) === -1) {
         selectedItem.push({
             id: item.id,
-            name: item.name,
+            [props.displayKey]: item[props.displayKey],
         });
     }
     availableItems = [];
