@@ -35,13 +35,13 @@ import { watch, onMounted, defineEmits } from "vue";
 
 import { usePage } from "@inertiajs/vue3";
 
-let errorMessage = $ref(null);
+let errorMessage = ref(null);
 
 watch(
     () => usePage().props?.errors,
     (v) => {
        if (usePage().props.errors[props.name]) {
-            errorMessage = usePage().props.errors[props.name];
+            errorMessage.value = usePage().props.errors[props.name];
         }
     }
 );

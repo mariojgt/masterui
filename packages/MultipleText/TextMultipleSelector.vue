@@ -49,16 +49,16 @@
 // Import axios
 import axios from "axios";
 
-import { watch, onMounted, defineEmits } from "vue";
+import { watch, onMounted, defineEmits, ref } from "vue";
 import { usePage } from "@inertiajs/vue3";
 
-let errorMessage = $ref(null);
+let errorMessage = ref(null);
 
 watch(
     () => usePage().props?.errors,
     (v) => {
         if (usePage().props.errors[props.name]) {
-            errorMessage = usePage().props.errors[props.name];
+            errorMessage.value = usePage().props.errors[props.name];
         }
     }
 );
@@ -116,17 +116,17 @@ const update = (event) => {
     emit("update:modelValue", event.target.value);
 };
 
-let searchString = $ref("");
-let availableItems = $ref("");
+let searchString = ref("");
+let availableItems = ref("");
 const searchImage = async () => {
     axios
         .post(props.endpoint, {
-            search: searchString,
+            search: searchString.value,
             model: props.model,
             columns: props.columns
         })
         .then(function (response) {
-            availableItems = response.data;
+            availableItems.value = response.data;
         })
         .catch(function (error) {
             for (const [key, value] of Object.entries(error.response.data.errors)) {
@@ -135,36 +135,36 @@ const searchImage = async () => {
         });
 };
 
-let selectedItem = $ref([]);
+let selectedItem = ref([]);
 
 const addItem = async (item) => {
     if (props.singleMode) {
-        selectedItem = [];
+        selectedItem.value = [];
     }
     // Add the image to the selected media make sure is unique value
-    if (selectedItem.indexOf(item) === -1) {
-        selectedItem.push({
+    if (selectedItem.value.indexOf(item) === -1) {
+        selectedItem.value.push({
             id: item.id,
             [props.displayKey]: item[props.displayKey],
         });
     }
-    availableItems = [];
+    availableItems.value = [];
 
-    emit("update:modelValue", selectedItem);
+    emit("update:modelValue", selectedItem.value);
 };
 
 const removeItem = async (index) => {
-    selectedItem.splice(index, 1);
+    selectedItem.value.splice(index, 1);
 
-    emit("update:modelValue", selectedItem);
+    emit("update:modelValue", selectedItem.value);
 };
 
 onMounted(() => {
     if (props.loadData) {
         if (props.singleMode) {
-            selectedItem = [props.loadData];
+            selectedItem.value = [props.loadData];
         } else {
-            selectedItem = props.loadData;
+            selectedItem.value = props.loadData;
         }
     }
 })
