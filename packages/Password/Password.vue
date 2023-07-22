@@ -75,13 +75,13 @@ const update = (event) => {
     emit("update:modelValue", event.target.value);
 };
 
-let showPassword = $ref(false);
+let showPassword = ref(false);
 
 const showPasswordlToogle = () => {
-    if (showPassword == false) {
-        showPassword = true;
+    if (showPassword.value == false) {
+        showPassword.value = true;
     } else {
-        showPassword = false;
+        showPassword.value = false;
     }
 };
 
