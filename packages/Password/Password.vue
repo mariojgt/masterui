@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { watch, onMounted, defineEmits } from "vue";
+import { watch, ref, defineEmits } from "vue";
 
 import { usePage } from "@inertiajs/vue3";
 
