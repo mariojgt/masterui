@@ -55,11 +55,11 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-let checkedToggle = $ref(props.modelValue ? props.modelValue : false);
+let checkedToggle = ref(props.modelValue ? props.modelValue : false);
 
 const clickToggle = () => {
-    checkedToggle = !checkedToggle;
-    emit("update:modelValue", checkedToggle);
+    checkedToggle.value = !checkedToggle.value;
+    emit("update:modelValue", checkedToggle.value);
 };
 </script>
 
