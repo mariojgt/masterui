@@ -1,7 +1,7 @@
 <template>
     <div class="form-control">
         <label class="label">
-            <span class="label-text">{{ props.label }}</span>
+            <span class="block text-lg font-bold mb-2">{{ props.label }}</span>
         </label>
         <div class="relative">
             <input
