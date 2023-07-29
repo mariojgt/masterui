@@ -7,3 +7,4 @@ export { default as SelectInput } from "./Select/Select.vue";
 export { default as Image } from "./Image/Image.vue";
 export { default as TextMultipleSelector } from "./MultipleText/TextMultipleSelector.vue";
 export { default as Toogle } from "./Toogle/Toogle.vue";
+export { default as ReusableModal } from "./ReusableModal/ReusableModal.vue";
