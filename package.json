@@ -13,15 +13,19 @@
     "@inertiajs/vue3": "^1.0.0",
     "color-convert": "^2.0.1",
     "colors": "^1.4.0",
-    "daisyui": "^2.14.1",
-    "vue": "^3.2.25"
+    "daisyui": "^4.7.2",
+    "vue": "^3.2.25",
+    "vue-router": "^4.2.5"
   },
   "devDependencies": {
     "@jamescoyle/vue-icon": "^0.1.2",
     "@mdi/js": "^6.6.96",
     "@vitejs/plugin-vue": "^2.3.1",
+    "@vue-macros/reactivity-transform": "^0.4.3",
     "autoprefixer": "^10.4.4",
     "css-selector-tokenizer": "^0.8.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-vue": "^9.21.1",
     "lerna": "^4.0.0",
     "postcss": "^8.4.7",
     "tailwindcss": "^3.0.24",
