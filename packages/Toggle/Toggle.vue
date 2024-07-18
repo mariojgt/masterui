@@ -5,16 +5,18 @@
         <span class="block text-lg font-bold mb-2">{{ props.label }}</span>
       </label>
 
-      <!-- Toggle Switch -->
-      <input
-        type="checkbox"
-        :class="['toggle', props.class]"
-        :name="props.name"
-        :id="props.id"
-        :placeholder="props.placeholder"
-        :checked="checkedToggle"
-        @click="clickToggle"
-      />
+      <!-- Toggle Switch using Headless UI -->
+      <Switch
+        v-model="checkedToggle"
+        :class="checkedToggle ? 'bg-primary' : 'bg-gray-200'"
+        class="relative inline-flex h-6 w-11 items-center rounded-full"
+      >
+        <span class="sr-only">Toggle</span>
+        <span
+          :class="checkedToggle ? 'translate-x-6' : 'translate-x-1'"
+          class="inline-block h-4 w-4 transform rounded-full bg-white transition"
+        />
+      </Switch>
 
       <!-- Error Message -->
       <span class="invalid-feedback text-primary" role="alert" v-if="errorMessage">
@@ -24,8 +26,9 @@
   </template>
 
   <script setup>
-  import { watch, ref, defineProps, defineEmits } from 'vue';
+  import { ref, defineProps, defineEmits, watch } from 'vue';
   import { usePage } from '@inertiajs/vue3';
+  import { Switch } from '@headlessui/vue';
 
   // Define the props
   const props = defineProps({
@@ -33,7 +36,7 @@
     name: String,
     id: String,
     placeholder: String,
-    modelValue: String,
+    modelValue: Boolean,
     class: String,
   });
 
@@ -52,11 +55,18 @@
     }
   );
 
-  // Handle click event on the toggle switch
-  const clickToggle = () => {
-    checkedToggle.value = !checkedToggle.value;
-    emit('update:modelValue', checkedToggle.value);
-  };
+  // Watch the prop 'modelValue' to update the toggle state
+  watch(
+    () => props.modelValue,
+    (newValue) => {
+      checkedToggle.value = newValue;
+    }
+  );
+
+  // Watch the toggle state to emit the update event
+  watch(checkedToggle, (newValue) => {
+    emit('update:modelValue', newValue);
+  });
   </script>
 
   <style>
