@@ -8,7 +8,7 @@
       <!-- Toggle Switch using Headless UI -->
       <Switch
         v-model="checkedToggle"
-        :class="checkedToggle ? 'bg-base-100' : 'bg-gray-200'"
+        :class="checkedToggle ? 'bg-primary' : 'bg-gray-200'"
         class="relative inline-flex h-6 w-11 items-center rounded-full"
       >
         <span class="sr-only">Toggle</span>
