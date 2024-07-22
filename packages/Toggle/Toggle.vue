@@ -70,5 +70,4 @@
   </script>
 
   <style>
-  /* Add any specific styles for this component if needed */
   </style>
