@@ -12,7 +12,23 @@
                         enter-to="opacity-100 scale-100" leave="duration-200 ease-in" leave-from="opacity-100 scale-100"
                         leave-to="opacity-0 scale-95">
                         <DialogPanel
-                            class="modal-box w-11/12 max-w-5xll">
+                            class="modal-box"
+                            :class="{ 'w-11/12 max-w-5xl': !props.isLarge, 'w-11/12 max-w-5xl': props.isLarge }, props.modalClass"
+                            >
+                            <button @click="emitClose" :class="topCloseButtonClass">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-6 w-6"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                             <slot name="title">
                                 <h3 class="font-bold text-lg">Hello!</h3>
                             </slot>
@@ -24,7 +40,7 @@
                                     </p>
                                 </slot>
                             </div>
-                            <div class="py-3 sm:flex sm:flex-row-reverse gap-4">
+                            <div class="py-3 sm:flex sm:flex-row-reverse gap-4" v-if="showFooter">
                                 <button @click="emitConfirm" type="button" class="btn btn-success">{{ props.confirmText }}</button>
                                 <button @click="emitClose" type="button" class="btn btn-error">{{ props.cancelText }}</button>
                             </div>
@@ -57,6 +73,22 @@ const props = defineProps({
     confirmText : {
         type: String,
         default: 'Confirm'
+    },
+    isLarge : {
+        type: Boolean,
+        default: false
+    },
+    modalClass : {
+        type: String,
+        default: ''
+    },
+    topCloseButtonClass : {
+        type: String,
+        default: 'absolute top-1 right-1 p-4 bg-primary rounded-full hover:bg-base-300'
+    },
+    showFooter : {
+        type: Boolean,
+        default: true
     }
 })
 

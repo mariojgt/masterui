@@ -1,10 +1,10 @@
 <template>
     <div class="form-control">
         <label class="label">
-            <span class="block text-lg font-bold mb-2">{{ props.label }}</span>
+            <span :class="labelClass">{{ props.label }}</span>
         </label>
         <input
-            class="input input-primary input-bordered"
+            :class="inputClass"
             :type="props.type"
             name="{{ props.name }}"
             id="{{ props.id }}"
@@ -12,7 +12,7 @@
             :value="modelValue"
             @input="update"
         />
-        <span class="invalid-feedback text-primary" role="alert">
+        <span v-if="errorMessage" :class="messageClass" role="alert">
             <strong>{{ errorMessage }}</strong>
         </span>
     </div>
@@ -57,6 +57,18 @@ const props = defineProps({
     modelValue: {
         type: String,
         default: "",
+    },
+    messageClass: {
+        type: String,
+        default: "invalid-feedback text-primary",
+    },
+    labelClass: {
+        type: String,
+        default: "block text-lg font-bold mb-2",
+    },
+    inputClass: {
+        type: String,
+        default: "input input-primary input-bordered",
     },
 });
 
