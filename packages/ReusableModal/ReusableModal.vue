@@ -15,7 +15,7 @@
                             class="modal-box"
                             :class="{ 'w-11/12 max-w-5xl': !props.isLarge, 'w-11/12 max-w-5xl': props.isLarge }, props.modalClass"
                             >
-                            <button @click="emitClose" :class="topCloseButtonClass">
+                            <button v-if="showHeader" @click="emitClose" :class="topCloseButtonClass">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     class="h-6 w-6"
@@ -29,7 +29,7 @@
                                     d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
-                            <slot name="title">
+                            <slot v-if="showHeader" name="title">
                                 <h3 class="font-bold text-lg">Hello!</h3>
                             </slot>
                             <div class="mt-2">
@@ -87,6 +87,10 @@ const props = defineProps({
         default: 'absolute top-1 right-1 p-4 bg-primary rounded-full hover:bg-base-300'
     },
     showFooter : {
+        type: Boolean,
+        default: true
+    },
+    showHeader : {
         type: Boolean,
         default: true
     }
