@@ -12,9 +12,11 @@
                         enter-to="opacity-100 scale-100" leave="duration-200 ease-in" leave-from="opacity-100 scale-100"
                         leave-to="opacity-0 scale-95">
                         <DialogPanel
-                            class="modal-box"
-                            :class="{ 'w-11/12 max-w-5xl': !props.isLarge, 'w-11/12 max-w-5xl': props.isLarge }, props.modalClass"
-                            >
+                        :class="[
+                            props.showModalBox ? 'modal-box' : '',
+                            { 'w-11/12 max-w-5xl': props.isLarge },
+                            props.modalClass
+                        ]">
                             <button v-if="showHeader" @click="emitClose" :class="topCloseButtonClass">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -91,6 +93,10 @@ const props = defineProps({
         default: true
     },
     showHeader : {
+        type: Boolean,
+        default: true
+    },
+    showModalBox : {
         type: Boolean,
         default: true
     }
