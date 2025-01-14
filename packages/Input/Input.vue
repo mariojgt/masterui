@@ -1,80 +1,139 @@
 <template>
     <div class="form-control">
-        <label class="label">
-            <span :class="labelClass">{{ props.label }}</span>
-        </label>
-        <input
-            :class="inputClass"
-            :type="props.type"
-            name="{{ props.name }}"
-            id="{{ props.id }}"
-            :placeholder="props.placeholder"
-            :value="modelValue"
-            @input="update"
-        />
-        <span v-if="errorMessage" :class="messageClass" role="alert">
-            <strong>{{ errorMessage }}</strong>
+      <label :for="id" class="label">
+        <span :class="labelClass">{{ label }}</span>
+      </label>
+
+      <input
+        :id="id"
+        :name="name"
+        :type="type"
+        :class="[inputClass, { 'error': errorMessage }]"
+        :placeholder="placeholder"
+        :value="modelValue"
+        @input="update"
+        @blur="validateInput"
+      />
+
+      <Transition
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="transform opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="transform opacity-0"
+      >
+        <span
+          v-if="errorMessage"
+          :class="messageClass"
+          role="alert"
+          aria-live="polite"
+        >
+          <strong>{{ errorMessage }}</strong>
         </span>
+      </Transition>
     </div>
-</template>
+  </template>
 
-<script setup lang="ts">
-import { watch, ref, defineEmits } from "vue";
-import { usePage } from "@inertiajs/vue3";
+  <script setup lang="ts">
+  import { watch, ref } from 'vue';
+  import { usePage } from '@inertiajs/vue3';
+  import type { PropType } from 'vue';
 
-let errorMessage = ref(null);
+  interface InputProps {
+    label: string;
+    name: string;
+    id: string;
+    placeholder?: string;
+    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url';
+    modelValue: string;
+    messageClass?: string;
+    labelClass?: string;
+    inputClass?: string;
+    required?: boolean;
+    pattern?: string;
+    minLength?: number;
+    maxLength?: number;
+  }
 
-watch(
-    () => usePage().props?.errors,
-    (v) => {
-        if (usePage().props.errors[props.name]) {
-            errorMessage.value = usePage().props.errors[props.name];
-        }
+  const props = withDefaults(defineProps<InputProps>(), {
+    placeholder: '',
+    type: 'text',
+    messageClass: 'text-red-500 text-sm mt-1',
+    labelClass: 'block text-lg font-bold mb-2',
+    inputClass: 'input input-primary input-bordered w-full',
+    required: false
+  });
+
+  const emit = defineEmits<{
+    'update:modelValue': [value: string];
+    'blur': [event: FocusEvent];
+  }>();
+
+  const errorMessage = ref<string | null>(null);
+  const page = usePage();
+
+  // Watch for Inertia errors
+  watch(
+    () => page.props.errors,
+    (newErrors) => {
+      if (newErrors && newErrors[props.name]) {
+        errorMessage.value = newErrors[props.name];
+      } else {
+        errorMessage.value = null;
+      }
+    },
+    { deep: true }
+  );
+
+  const update = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    emit('update:modelValue', target.value);
+    validateInput();
+  };
+
+  const validateInput = () => {
+    errorMessage.value = null;
+
+    if (props.required && !props.modelValue) {
+      errorMessage.value = `${props.label} is required`;
+      return;
     }
-);
 
-const props = defineProps({
-    label: {
-        type: String,
-        default: "",
-    },
-    name: {
-        type: String,
-        default: "",
-    },
-    id: {
-        type: String,
-        default: "",
-    },
-    placeholder: {
-        type: String,
-        default: "",
-    },
-    type: {
-        type: String,
-        default: "text",
-    },
-    modelValue: {
-        type: String,
-        default: "",
-    },
-    messageClass: {
-        type: String,
-        default: "invalid-feedback text-primary",
-    },
-    labelClass: {
-        type: String,
-        default: "block text-lg font-bold mb-2",
-    },
-    inputClass: {
-        type: String,
-        default: "input input-primary input-bordered",
-    },
-});
+    if (props.type === 'email' && props.modelValue) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(props.modelValue)) {
+        errorMessage.value = 'Please enter a valid email address';
+        return;
+      }
+    }
 
-const emit = defineEmits(["update:modelValue"]);
+    if (props.pattern && props.modelValue) {
+      const patternRegex = new RegExp(props.pattern);
+      if (!patternRegex.test(props.modelValue)) {
+        errorMessage.value = `Please match the requested format`;
+        return;
+      }
+    }
 
-const update = (event) => {
-    emit("update:modelValue", event.target.value);
-};
-</script>
+    if (props.minLength && props.modelValue.length < props.minLength) {
+      errorMessage.value = `Minimum length is ${props.minLength} characters`;
+      return;
+    }
+
+    if (props.maxLength && props.modelValue.length > props.maxLength) {
+      errorMessage.value = `Maximum length is ${props.maxLength} characters`;
+      return;
+    }
+  };
+  </script>
+
+  <style scoped>
+  .form-control {
+    @apply relative mb-4;
+  }
+
+  .input.error {
+    @apply border-red-500 focus:border-red-500 focus:ring-red-500;
+  }
+  </style>
