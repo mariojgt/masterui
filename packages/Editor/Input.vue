@@ -5,56 +5,69 @@
       </label>
 
       <!-- Toolbar -->
-      <div class="flex flex-wrap gap-1 p-2 mb-2 bg-gray-100 border rounded-t-lg">
+      <div class="flex flex-wrap items-center gap-2 p-3 bg-gray-50 border rounded-t-lg">
         <!-- Text Style Dropdown -->
-        <select
-          @change="formatDoc('formatBlock', $event.target.value)"
-          class="px-2 py-1 bg-white border rounded hover:bg-gray-50"
-        >
-          <option value="p">Paragraph</option>
-          <option value="h1">Heading 1</option>
-          <option value="h2">Heading 2</option>
-          <option value="h3">Heading 3</option>
-          <option value="h4">Heading 4</option>
-          <option value="h5">Heading 5</option>
-          <option value="h6">Heading 6</option>
-        </select>
+        <div class="flex-shrink-0">
+          <select
+            @change="formatDoc('formatBlock', $event.target.value)"
+            class="px-3 py-1.5 bg-white border rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="p">Paragraph</option>
+            <option value="h1">Heading 1</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+            <option value="h4">Heading 4</option>
+            <option value="h5">Heading 5</option>
+            <option value="h6">Heading 6</option>
+          </select>
+        </div>
+
+        <!-- Divider -->
+        <div class="h-6 w-px bg-gray-300"></div>
 
         <!-- Format Buttons -->
         <div class="flex gap-1">
           <button
             v-for="(btn, index) in formatButtons"
             :key="index"
-            @click="formatDoc(btn.command)"
+            @click.prevent="formatDoc(btn.command)"
             :title="btn.title"
-            class="p-2 text-gray-700 bg-white border rounded hover:bg-gray-50"
-            :class="{ 'bg-gray-200': isFormatActive(btn.command) }"
+            class="p-1.5 text-gray-700 bg-white border rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+            :class="{ 'bg-gray-100 text-primary border-primary': isFormatActive(btn.command) }"
           >
             <component :is="btn.icon" class="w-4 h-4" />
           </button>
         </div>
+
+        <!-- Divider -->
+        <div class="h-6 w-px bg-gray-300"></div>
 
         <!-- List Buttons -->
         <div class="flex gap-1">
           <button
             v-for="(btn, index) in listButtons"
             :key="index"
-            @click="formatDoc(btn.command)"
+            @click.prevent="formatDoc(btn.command)"
             :title="btn.title"
-            class="p-2 text-gray-700 bg-white border rounded hover:bg-gray-50"
+            class="p-1.5 text-gray-700 bg-white border rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+            :class="{ 'bg-gray-100 text-primary border-primary': isFormatActive(btn.command) }"
           >
             <component :is="btn.icon" class="w-4 h-4" />
           </button>
         </div>
+
+        <!-- Divider -->
+        <div class="h-6 w-px bg-gray-300"></div>
 
         <!-- Alignment Buttons -->
         <div class="flex gap-1">
           <button
             v-for="(btn, index) in alignButtons"
             :key="index"
-            @click="formatDoc(btn.command)"
+            @click.prevent="formatDoc(btn.command)"
             :title="btn.title"
-            class="p-2 text-gray-700 bg-white border rounded hover:bg-gray-50"
+            class="p-1.5 text-gray-700 bg-white border rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+            :class="{ 'bg-gray-100 text-primary border-primary': isFormatActive(btn.command) }"
           >
             <component :is="btn.icon" class="w-4 h-4" />
           </button>
@@ -63,19 +76,26 @@
 
       <!-- Editor Area -->
       <div
+        ref="editorRef"
         :id="id"
+        contenteditable="true"
+        spellcheck="true"
+        dir="ltr"
+        :placeholder="placeholder"
+        @input="handleInput"
+        @paste="handlePaste"
+        @blur="handleBlur"
         :class="[
           inputClass,
-          'min-h-[200px] max-h-[600px] overflow-y-auto p-4',
+          'min-h-[200px] max-h-[600px] overflow-y-auto p-4 focus:outline-none',
           { 'error': errorMessage }
         ]"
-        contenteditable="true"
-        @input="update"
-        @blur="validateInput"
-        @paste="handlePaste"
-        ref="editorRef"
-        v-html="modelValue"
       ></div>
+
+      <!-- Character Count -->
+      <div v-if="maxLength" class="mt-1 text-sm text-gray-500 text-right">
+        {{ currentLength }} / {{ maxLength }} characters
+      </div>
 
       <!-- Error Message -->
       <Transition
@@ -99,9 +119,9 @@
   </template>
 
   <script setup lang="ts">
-  import { ref, watch, onMounted } from 'vue';
+  import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
   import { usePage } from '@inertiajs/vue3';
-  import type { PropType } from 'vue';
+  import DOMPurify from 'dompurify';
   import {
     Bold,
     Italic,
@@ -115,9 +135,7 @@
     AlignJustify,
     Link,
     Code,
-    Quote,
-    Undo,
-    Redo
+    Quote
   } from 'lucide-vue-next';
 
   interface EditorProps {
@@ -138,7 +156,7 @@
     placeholder: '',
     messageClass: 'text-red-500 text-sm mt-1',
     labelClass: 'block text-lg font-bold mb-2',
-    inputClass: 'border border-gray-300 rounded-b-lg focus:ring-2 focus:ring-primary focus:border-primary',
+    inputClass: 'border border-gray-300 rounded-b-lg',
     required: false
   });
 
@@ -147,11 +165,11 @@
     'blur': [event: FocusEvent];
   }>();
 
-  const errorMessage = ref<string | null>(null);
   const editorRef = ref<HTMLDivElement | null>(null);
+  const errorMessage = ref<string | null>(null);
   const page = usePage();
+  const isComposing = ref(false);
 
-  // Format buttons configuration
   const formatButtons = [
     { command: 'bold', icon: Bold, title: 'Bold' },
     { command: 'italic', icon: Italic, title: 'Italic' },
@@ -174,41 +192,67 @@
     { command: 'justifyFull', icon: AlignJustify, title: 'Justify' }
   ];
 
-  // Format document function
-  const formatDoc = (command: string, value: string | null = null) => {
-    if (command === 'createLink') {
-      const url = prompt('Enter URL:');
-      if (url) {
-        document.execCommand(command, false, url);
-      }
-    } else if (command === 'formatBlock') {
-      document.execCommand(command, false, value);
-    } else {
-      document.execCommand(command, false, value);
-    }
-    editorRef.value?.focus();
+  const currentLength = computed(() => {
+    if (!editorRef.value) return 0;
+    return editorRef.value.textContent?.length || 0;
+  });
+
+  const handleInput = () => {
+    if (isComposing.value || !editorRef.value) return;
+    emit('update:modelValue', editorRef.value.innerHTML);
+    validateInput();
   };
 
-  // Check if format is active
+  const formatDoc = (command: string, value: string | null = null) => {
+    if (!editorRef.value) return;
+
+    editorRef.value.focus();
+
+    try {
+      if (command === 'createLink') {
+        const url = prompt('Enter URL:');
+        if (url) {
+          document.execCommand(command, false, url);
+        }
+      } else if (command === 'formatBlock') {
+        document.execCommand(command, false, `<${value}>`);
+      } else {
+        document.execCommand(command, false, value);
+      }
+      handleInput();
+    } catch (error) {
+      console.error('Format error:', error);
+    }
+  };
+
   const isFormatActive = (command: string): boolean => {
     return document.queryCommandState(command);
   };
 
-  // Handle paste to strip formatting
   const handlePaste = (e: ClipboardEvent) => {
     e.preventDefault();
+
+    const html = e.clipboardData?.getData('text/html');
     const text = e.clipboardData?.getData('text/plain');
-    document.execCommand('insertText', false, text);
+
+    if (html) {
+      const sanitized = DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: ['p', 'b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+        ALLOWED_ATTR: ['href']
+      });
+      document.execCommand('insertHTML', false, sanitized);
+    } else if (text) {
+      document.execCommand('insertText', false, text);
+    }
+
+    handleInput();
   };
 
-  // Update model value
-  const update = () => {
-    const content = editorRef.value?.innerHTML || '';
-    emit('update:modelValue', content);
+  const handleBlur = (event: FocusEvent) => {
+    emit('blur', event);
     validateInput();
   };
 
-  // Validation
   const validateInput = () => {
     errorMessage.value = null;
     const content = editorRef.value?.textContent || '';
@@ -229,6 +273,60 @@
     }
   };
 
+  // Setup editor and event listeners
+  const setupEditor = () => {
+    if (!editorRef.value) return;
+
+    const handleCompositionStart = () => {
+      isComposing.value = true;
+    };
+
+    const handleCompositionEnd = () => {
+      isComposing.value = false;
+      handleInput();
+    };
+
+    editorRef.value.addEventListener('compositionstart', handleCompositionStart);
+    editorRef.value.addEventListener('compositionend', handleCompositionEnd);
+
+    // Set initial content
+    if (props.modelValue) {
+      editorRef.value.innerHTML = DOMPurify.sanitize(props.modelValue);
+    }
+
+    // Set placeholder if needed
+    if (!props.modelValue && props.placeholder) {
+      editorRef.value.innerHTML = `<p class="text-gray-400">${props.placeholder}</p>`;
+    }
+
+    return () => {
+      if (!editorRef.value) return;
+      editorRef.value.removeEventListener('compositionstart', handleCompositionStart);
+      editorRef.value.removeEventListener('compositionend', handleCompositionEnd);
+    };
+  };
+
+  // Watch for external value changes
+  watch(
+    () => props.modelValue,
+    (newValue) => {
+      if (!editorRef.value || isComposing.value) return;
+
+      const currentContent = editorRef.value.innerHTML;
+      if (newValue !== currentContent) {
+        const selection = window.getSelection();
+        const range = selection?.getRangeAt(0);
+
+        editorRef.value.innerHTML = DOMPurify.sanitize(newValue || '');
+
+        if (range && selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+    }
+  );
+
   // Watch for Inertia errors
   watch(
     () => page.props.errors,
@@ -242,11 +340,10 @@
     { deep: true }
   );
 
-  // Initialize editor
+  // Initialize on mount
   onMounted(() => {
-    if (editorRef.value && !props.modelValue) {
-      editorRef.value.innerHTML = `<p>${props.placeholder}</p>`;
-    }
+    const cleanup = setupEditor();
+    onUnmounted(() => cleanup?.());
   });
   </script>
 
@@ -267,8 +364,14 @@
   :deep(h6) { @apply text-base font-bold mb-2; }
   :deep(p) { @apply mb-4; }
   :deep(blockquote) { @apply border-l-4 border-gray-300 pl-4 italic my-4; }
-  :deep(code) { @apply bg-gray-100 px-1 rounded; }
+  :deep(code) { @apply font-mono bg-gray-100 px-1.5 py-0.5 rounded text-sm; }
   :deep(ul) { @apply list-disc ml-6 mb-4; }
   :deep(ol) { @apply list-decimal ml-6 mb-4; }
   :deep(a) { @apply text-blue-600 hover:underline; }
+
+  [contenteditable=true]:empty:before {
+    content: attr(placeholder);
+    @apply text-gray-400;
+    cursor: text;
+  }
   </style>
