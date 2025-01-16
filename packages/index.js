@@ -11,6 +11,7 @@ import ReusableModal from "./ReusableModal/ReusableModal.vue";
 import Alert from "./Alert/Alert.vue";
 import Chips from "./Chips/Chips.vue";
 import Editor from "./Editor/Input.vue";
+import Timestamp from "./Timestamp/Input.vue";
 
 // Export the Vue components
 export {
@@ -25,5 +26,6 @@ export {
   ReusableModal,
   Alert,
   Chips,
-  Editor
+  Editor,
+  Timestamp
 };
