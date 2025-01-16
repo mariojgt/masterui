@@ -1,6 +1,6 @@
 {
   "name": "@mariojgt/masterui",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,6 +12,9 @@
     "@headlessui/vue": "^1.7.7",
     "@inertiajs/vue3": "^1.0.0",
     "color-convert": "^2.0.1",
+    "turndown": "^7.2.0",
+    "marked": "^15.0.6",
+    "dompurify": "^3.2.3",
     "colors": "^1.4.0",
     "daisyui": "^4.7.2",
     "vue": "^3.2.25",
