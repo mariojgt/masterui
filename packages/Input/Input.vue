@@ -110,6 +110,7 @@ const validateInput = () => {
 </script>
 
 <style scoped>
+@reference "tailwindcss";
 .form-control {
     @apply relative mb-4;
 }
