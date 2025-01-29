@@ -4,7 +4,6 @@
         <span :class="labelClass">{{ label }}</span>
       </label>
 
-      <!-- Main Input (hidden but maintained for form submission) -->
       <input
         :id="id"
         :name="name"
@@ -13,9 +12,7 @@
         class="hidden"
       />
 
-      <!-- Custom DateTime UI -->
       <div class="relative">
-        <!-- Display Button -->
         <button
           type="button"
           @click="togglePicker"
@@ -37,82 +34,124 @@
           />
         </button>
 
-        <!-- Picker Dropdown -->
         <div
           v-if="isOpen"
           class="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg"
           v-click-outside="closePicker"
         >
           <div class="p-4 space-y-4">
-            <!-- Date Selection -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between mb-2">
+            <!-- Year and Month Selection -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <button
+                  @click="() => showYearSelect = !showYearSelect"
+                  class="px-3 py-1 text-sm font-semibold hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  {{ currentYear }}
+                  <ChevronDown class="w-4 h-4 inline-block ml-1" :class="{ 'rotate-180': showYearSelect }" />
+                </button>
+                <button
+                  class="text-gray-700 font-medium hover:bg-gray-100 px-3 py-1 rounded-full"
+                  @click="() => showMonthSelect = !showMonthSelect"
+                >
+                  {{ currentMonthName }}
+                  <ChevronDown class="w-4 h-4 inline-block ml-1" :class="{ 'rotate-180': showMonthSelect }" />
+                </button>
+              </div>
+              <div class="flex gap-1">
                 <button
                   @click="previousMonth"
-                  class="p-1 hover:bg-gray-100 rounded-full"
+                  class="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
-                  <ChevronLeft class="w-5 h-5" />
+                  <ChevronLeft class="w-4 h-4" />
                 </button>
-                <span class="font-semibold">
-                  {{ currentMonthName }} {{ currentYear }}
-                </span>
                 <button
                   @click="nextMonth"
-                  class="p-1 hover:bg-gray-100 rounded-full"
+                  class="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
-                  <ChevronRight class="w-5 h-5" />
-                </button>
-              </div>
-
-              <!-- Week Days Header -->
-              <div class="grid grid-cols-7 mb-1">
-                <span
-                  v-for="day in weekDays"
-                  :key="day"
-                  class="text-center text-sm text-gray-500 font-medium"
-                >
-                  {{ day }}
-                </span>
-              </div>
-
-              <!-- Calendar Grid -->
-              <div class="grid grid-cols-7 gap-1">
-                <button
-                  v-for="date in calendarDates"
-                  :key="date.toISOString()"
-                  @click="selectDate(date)"
-                  class="p-2 text-sm rounded-full hover:bg-gray-100 relative"
-                  :class="{
-                    'bg-primary/10 text-primary font-semibold': isSelectedDate(date),
-                    'text-gray-400': !isSameMonth(date),
-                    'text-gray-900': isSameMonth(date)
-                  }"
-                >
-                  {{ date.getDate() }}
-                  <div
-                    v-if="isToday(date)"
-                    class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
-                  ></div>
+                  <ChevronRight class="w-4 h-4" />
                 </button>
               </div>
             </div>
 
+            <!-- Year Selection Dropdown -->
+            <div v-if="showYearSelect" class="absolute top-16 left-4 bg-white border rounded-lg shadow-lg p-2 z-10">
+              <div class="grid grid-cols-4 gap-1 max-h-48 overflow-y-auto">
+                <button
+                  v-for="year in yearRange"
+                  :key="year"
+                  @click="selectYear(year)"
+                  class="px-2 py-1 text-sm rounded hover:bg-gray-100 transition-colors"
+                  :class="{ 'bg-primary/10 text-primary font-semibold': year === currentYear }"
+                >
+                  {{ year }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Month Selection Dropdown -->
+            <div v-if="showMonthSelect" class="absolute top-16 left-24 bg-white border rounded-lg shadow-lg p-2 z-10">
+              <div class="grid grid-cols-3 gap-1">
+                <button
+                  v-for="(month, index) in monthNames"
+                  :key="month"
+                  @click="selectMonth(index)"
+                  class="px-3 py-1 text-sm rounded hover:bg-gray-100 transition-colors"
+                  :class="{ 'bg-primary/10 text-primary font-semibold': index === currentDate.getMonth() }"
+                >
+                  {{ month }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Week Days Header -->
+            <div class="grid grid-cols-7 mb-1">
+              <span
+                v-for="day in weekDays"
+                :key="day"
+                class="text-center text-sm text-gray-500 font-medium"
+              >
+                {{ day }}
+              </span>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="grid grid-cols-7 gap-1">
+              <button
+                v-for="date in calendarDates"
+                :key="date.toISOString()"
+                @click="selectDate(date)"
+                class="p-2 text-sm rounded-full hover:bg-gray-100 transition-colors relative group"
+                :class="{
+                  'bg-primary/10 text-primary font-semibold': isSelectedDate(date),
+                  'text-gray-400': !isSameMonth(date),
+                  'text-gray-900': isSameMonth(date)
+                }"
+              >
+                {{ date.getDate() }}
+                <div
+                  v-if="isToday(date)"
+                  class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
+                ></div>
+              </button>
+            </div>
+
             <!-- Time Selection -->
-            <div class="flex items-center justify-center gap-4">
-              <div class="flex items-center gap-2">
+            <div class="flex items-center justify-center gap-4 pt-4 border-t">
+              <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
                 <select
                   v-model="selectedHours"
-                  class="w-16 p-1 border rounded"
+                  class="w-16 p-1 bg-white border rounded shadow-sm focus:ring-1 focus:ring-primary"
                   @change="updateTime"
                 >
                   <option v-for="hour in 24" :key="hour" :value="hour - 1">
                     {{ String(hour - 1).padStart(2, '0') }}
                   </option>
                 </select>
-                <span class="text-gray-500">:</span>
+                <span class="text-gray-500 font-medium">:</span>
                 <select
                   v-model="selectedMinutes"
-                  class="w-16 p-1 border rounded"
+                  class="w-16 p-1 bg-white border rounded shadow-sm focus:ring-1 focus:ring-primary"
                   @change="updateTime"
                 >
                   <option v-for="minute in minuteOptions" :key="minute" :value="minute">
@@ -123,12 +162,12 @@
             </div>
 
             <!-- Quick Selection -->
-            <div class="flex flex-wrap gap-2 pt-2 border-t">
+            <div class="flex flex-wrap gap-2 pt-3 border-t">
               <button
                 v-for="preset in timePresets"
                 :key="preset.label"
                 @click="selectPreset(preset.value)"
-                class="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200"
+                class="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
               >
                 {{ preset.label }}
               </button>
@@ -137,7 +176,6 @@
         </div>
       </div>
 
-      <!-- Error Message -->
       <Transition
         enter-active-class="transition duration-300 ease-out"
         enter-from-class="transform opacity-0"
@@ -198,6 +236,8 @@
 
   // State
   const isOpen = ref(false);
+  const showYearSelect = ref(false);
+  const showMonthSelect = ref(false);
   const currentDate = ref(new Date());
   const selectedDate = ref<Date | null>(null);
   const selectedHours = ref(0);
@@ -213,9 +253,19 @@
     { label: 'Tomorrow', value: new Date().setDate(new Date().getDate() + 1) },
   ];
 
-  // Computed values
+  // Constants
   const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   const minuteOptions = Array.from({ length: 60 }, (_, i) => i);
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  // Computed values
+  const yearRange = computed(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 100 }, (_, i) => currentYear - 50 + i);
+  });
 
   const currentMonthName = computed(() => {
     return format(currentDate.value, 'MMMM');
@@ -244,10 +294,24 @@
   // Methods
   const togglePicker = () => {
     isOpen.value = !isOpen.value;
+    showYearSelect.value = false;
+    showMonthSelect.value = false;
   };
 
   const closePicker = () => {
     isOpen.value = false;
+    showYearSelect.value = false;
+    showMonthSelect.value = false;
+  };
+
+  const selectYear = (year: number) => {
+    currentDate.value = new Date(year, currentDate.value.getMonth(), 1);
+    showYearSelect.value = false;
+  };
+
+  const selectMonth = (month: number) => {
+    currentDate.value = new Date(currentDate.value.getFullYear(), month, 1);
+    showMonthSelect.value = false;
   };
 
   const previousMonth = () => {
@@ -353,11 +417,11 @@
   </script>
 
   <style scoped>
-  @reference "tailwindcss";
-
+   @reference "tailwindcss";
   .form-control {
     @apply relative mb-4;
   }
+
   .error {
     @apply border-red-500 focus:border-red-500 focus:ring-red-500;
   }

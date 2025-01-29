@@ -1,94 +1,107 @@
 <template>
     <div class="form-control">
+        <!-- Label and Search Section -->
         <label class="label">
-            <span class="block text-lg font-bold mb-2">{{ props.label }}</span>
+            <span class="text-lg font-bold text-base-content">{{ props.label }}</span>
         </label>
 
-        <input
-            class="input input-primary input-bordered"
-            :name="props.name"
-            :id="props.id"
-            :placeholder="props.placeholder"
-            v-model="searchString"
-            autocomplete="off"
-            @keyup="searchImage"
-        />
-
-        <span
-            class="invalid-feedback text-primary mt-2"
-            role="alert"
-            v-if="errorMessage"
-        >
-            <strong>{{ errorMessage }}</strong>
-        </span>
-
-        <div class="mt-3 bg-base-100 rounded" v-if="availableSearchItems.data[0]">
-            <div class="px-2 py-3 bg-primary text-white rounded-t">
-                <strong>Available Items</strong>
+        <!-- Search Input with Icon -->
+        <div class="relative mb-4">
+            <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-2 bg-dark-100">
-                <div
-                    class="flex flex-col items-center border border-success p-3 hover:text-white rounded cursor-pointer"
-                    v-for="(item, index) in availableSearchItems.data"
-                    :key="item.id"
-                    @click="addMedia(item)"
-                >
-                    <img
-                        :src="item.url.default"
-                        class="h-60 w-auto mb-2"
-                    />
-                    <strong class="text-lg font-bold">{{ item.name }}</strong>
-                    <button class="btn btn-success mt-2 w-full">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="1.5"
-                            stroke="currentColor"
-                            class="w-6 h-6 mt-2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4.5 12.75l6 6 9-13.5"
+            <input
+                class="input input-primary input-bordered w-full pl-10"
+                :name="props.name"
+                :id="props.id"
+                :placeholder="props.placeholder"
+                v-model="searchString"
+                autocomplete="off"
+                @keyup="searchImage"
+            />
+        </div>
+
+        <!-- Error Message -->
+        <div v-if="errorMessage" class="alert alert-error mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{{ errorMessage }}</span>
+        </div>
+
+        <!-- Available Items Section -->
+        <div v-if="availableSearchItems.data[0]" class="card bg-base-100 shadow-xl mb-6">
+            <div class="card-header px-6 py-4 bg-primary text-primary-content flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <strong class="text-xl">Available Items</strong>
+            </div>
+            <div class="card-body p-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div
+                        v-for="(item, index) in availableSearchItems.data"
+                        :key="item.id"
+                        class="card bg-base-200 hover:bg-base-300 transition-all duration-300 cursor-pointer group"
+                        @click="addMedia(item)"
+                    >
+                        <figure class="relative pt-4 px-4">
+                            <img
+                                :src="item.url.default"
+                                :alt="item.name"
+                                class="h-60 w-full object-cover rounded-xl"
                             />
-                        </svg>
-                    </button>
+                            <div class="absolute inset-0 bg-success/0 group-hover:bg-success/10 transition-all duration-300 rounded-xl"></div>
+                        </figure>
+                        <div class="card-body p-4 text-center">
+                            <h3 class="font-bold text-lg mb-2 truncate">{{ item.name }}</h3>
+                            <button class="btn btn-success btn-sm w-full gap-2 group-hover:btn-active">
+                                <span>Select</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-3 bg-base-300 rounded" v-if="selectedMedia.length > 0">
-            <div class="px-2 py-3 bg-primary text-white rounded-t">
-                <strong>Selected Items</strong>
+        <!-- Selected Items Section -->
+        <div v-if="selectedMedia.length > 0" class="card bg-base-100 shadow-xl">
+            <div class="card-header px-6 py-4 bg-secondary text-secondary-content flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <strong class="text-xl">Selected Items</strong>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-2">
-                <div
-                    class="flex flex-col items-center border border-error p-3 hover:text-white rounded cursor-pointer"
-                    v-for="(item, index) in selectedMedia"
-                    :key="item.id"
-                >
-                    <img
-                        :src="item.url.default"
-                        class="h-60 w-auto mb-2"
-                    />
-                    <strong class="text-lg font-bold">{{ item.name }}</strong>
-                    <button @click="removeMedia(index)" class="btn btn-error mt-2 w-full">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="1.5"
-                            stroke="currentColor"
-                            class="w-6 h-6 mt-2"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+            <div class="card-body p-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div
+                        v-for="(item, index) in selectedMedia"
+                        :key="item.id"
+                        class="card bg-base-200 group"
+                    >
+                        <figure class="relative pt-4 px-4">
+                            <img
+                                :src="item.url.default"
+                                :alt="item.name"
+                                class="h-60 w-full object-cover rounded-xl"
                             />
-                        </svg>
-                    </button>
+                            <div class="absolute inset-0 bg-error/0 group-hover:bg-error/10 transition-all duration-300 rounded-xl"></div>
+                        </figure>
+                        <div class="card-body p-4 text-center">
+                            <h3 class="font-bold text-lg mb-2 truncate">{{ item.name }}</h3>
+                            <button @click="removeMedia(index)" class="btn btn-error btn-sm w-full gap-2 group-hover:btn-active">
+                                <span>Remove</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

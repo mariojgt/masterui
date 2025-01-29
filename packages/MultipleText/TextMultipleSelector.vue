@@ -4,42 +4,76 @@
             <span class="block text-lg font-bold mb-2">{{ props.label }}</span>
         </label>
 
-        <input class="input input-primary input-bordered" :name="props.name" :id="props.id"
-            :placeholder="props.placeholder" autocomplete="off" v-model="searchString" @keyup="searchImage" />
+        <!-- Search Input with Icon -->
+        <div class="relative">
+            <input
+                class="input input-primary input-bordered w-full pl-10"
+                :name="props.name"
+                :id="props.id"
+                :placeholder="props.placeholder"
+                autocomplete="off"
+                v-model="searchString"
+                @keyup="searchImage"
+            />
+            <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                </svg>
+            </div>
+        </div>
 
-        <span class="invalid-feedback text-primary" role="alert">
+        <!-- Error Message -->
+        <span class="invalid-feedback text-primary mt-1 block" role="alert" v-if="errorMessage">
             <strong>{{ errorMessage }}</strong>
         </span>
-        <div v-if="availableItems.data" class="mt-3 rounded p-1 bg-base-100">
-            <!-- Add title here -->
-            <div class="px-2 py-3 text-xl font-bold bg-primary text-white rounded mb-2 text-left">
-                <strong>Available Items</strong>
-            </div>
-            <div class="flex justify-between items-center text-black p-2 bg-white rounded-lg hover:bg-secondary border border-black mb-2"
-                v-for="(item, index) in availableItems.data" :key="item.id" @click="addItem(item)">
-                <p class="text-2xl font-bold text-black">{{ item[props.displayKey] }}</p>
-                <div class="btn btn-success">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                        stroke="currentColor" class="w-6 h-6 text-white">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+
+        <!-- Available Items -->
+        <div v-if="availableItems.data" class="mt-3 rounded-lg overflow-hidden border border-base-300 bg-base-100 shadow-lg">
+            <div class="px-4 py-3 text-xl font-bold bg-primary text-white">
+                <strong class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
+                    Available Items
+                </strong>
+            </div>
+            <div class="p-2 space-y-2">
+                <div v-for="(item, index) in availableItems.data"
+                     :key="item.id"
+                     @click="addItem(item)"
+                     class="flex justify-between items-center p-3 bg-white rounded-lg border border-base-200 hover:bg-secondary hover:border-secondary hover:text-white transition-all duration-200 cursor-pointer">
+                    <p class="text-xl font-bold text-black">{{ item[props.displayKey] }}</p>
+                    <div class="btn btn-circle btn-success btn-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
+                            stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                    </div>
                 </div>
             </div>
         </div>
-        <!-- Show the selected items -->
-        <div v-if="selectedItem.length > 0" class="mt-3 rounded p-1 bg-base-100">
-            <div class="px-2 py-3 text-xl bg-secondary text-white rounded mb-2 text-left">
-                <strong>Selected Items</strong>
-            </div>
-            <div class="flex justify-between items-center text-black p-2 bg-white rounded-lg hover:bg-secondary border border-black mb-2"
-                v-for="(item, index) in selectedItem" :key="item.id">
-                <p class="text-2xl font-bold text-black">{{ item[props.displayKey] }}</p>
-                <div class="btn btn-error" @click="removeItem(index)">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                        stroke="currentColor" class="w-6 h-6 text-white">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+
+        <!-- Selected Items -->
+        <div v-if="selectedItem.length > 0" class="mt-3 rounded-lg overflow-hidden border border-base-300 bg-base-100 shadow-lg">
+            <div class="px-4 py-3 text-xl font-bold bg-secondary text-white">
+                <strong class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
+                    Selected Items
+                </strong>
+            </div>
+            <div class="p-2 space-y-2">
+                <div v-for="(item, index) in selectedItem"
+                     :key="item.id"
+                     class="flex justify-between items-center p-3 bg-white rounded-lg border border-base-200 hover:bg-base-200 transition-all duration-200">
+                    <p class="text-xl font-bold">{{ item[props.displayKey] }}</p>
+                    <div class="btn btn-circle btn-error btn-sm" @click="removeItem(index)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
+                            stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
                 </div>
             </div>
         </div>
@@ -52,6 +86,9 @@ import { watch, onMounted, defineEmits, ref } from "vue";
 import { usePage } from "@inertiajs/vue3";
 
 let errorMessage = ref(null);
+let searchString = ref("");
+let availableItems = ref([]);
+let selectedItem = ref([]);
 
 watch(
     () => usePage().props?.errors,
@@ -63,50 +100,17 @@ watch(
 );
 
 const props = defineProps({
-    label: {
-        type: String,
-        default: "",
-    },
-    name: {
-        type: String,
-        default: "",
-    },
-    id: {
-        type: String,
-        default: "",
-    },
-    placeholder: {
-        type: String,
-        default: "",
-    },
-    modelValue: {
-        type: String,
-        default: "",
-    },
-    model: {
-        type: String,
-        default: "",
-    },
-    columns: {
-        type: Object,
-        default: null,
-    },
-    endpoint: {
-        type: String,
-        default: "",
-    },
-    loadData: {
-        type: Object,
-        default: null,
-    },
-    singleMode: {
-        type: Boolean,
-        default: false,
-    },
-    displayKey: {
-        type: String,
-        default: "name",
-    },
+    label: { type: String, default: "" },
+    name: { type: String, default: "" },
+    id: { type: String, default: "" },
+    placeholder: { type: String, default: "" },
+    modelValue: { type: String, default: "" },
+    model: { type: String, default: "" },
+    columns: { type: Object, default: null },
+    endpoint: { type: String, default: "" },
+    loadData: { type: Object, default: null },
+    singleMode: { type: Boolean, default: false },
+    displayKey: { type: String, default: "name" },
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -115,8 +119,6 @@ const update = (event) => {
     emit("update:modelValue", event.target.value);
 };
 
-let searchString = ref("");
-let availableItems = ref([]);
 const searchImage = async () => {
     axios
         .post(props.endpoint, {
@@ -136,8 +138,6 @@ const searchImage = async () => {
         });
 };
 
-let selectedItem = ref([]);
-
 const addItem = (item) => {
     if (props.singleMode) {
         selectedItem.value = [];
@@ -145,7 +145,6 @@ const addItem = (item) => {
     if (!Array.isArray(selectedItem.value)) {
         selectedItem.value = [];
     }
-    // Add the image to the selected media make sure is unique value
     if (selectedItem.value.findIndex((i) => i.id === item.id) === -1) {
         selectedItem.value.push({
             id: item.id,
@@ -153,13 +152,11 @@ const addItem = (item) => {
         });
     }
     availableItems.value = [];
-
     emit("update:modelValue", selectedItem.value);
 };
 
 const removeItem = (index) => {
     selectedItem.value.splice(index, 1);
-
     emit("update:modelValue", selectedItem.value);
 };
 
