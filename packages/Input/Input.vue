@@ -1,64 +1,77 @@
 <template>
-    <div class="form-control">
+    <div class="form-control w-full">
         <label :for="id" class="label">
-            <span :class="labelClass">{{ label }}</span>
+            <slot name="label">
+                <span class="label-text font-semibold">{{ label }}</span>
+            </slot>
         </label>
+        <input
+            :id="id"
+            :name="name"
+            :type="type"
+            :class="['input input-bordered w-full', inputClass, { 'input-error': errorMessage }]"
+            :placeholder="placeholder"
+            :value="modelValue"
+            :readonly="readonly"
+            :required="required"
+            :min="min"
+            :max="max"
+            :step="step"
+            :pattern="pattern"
+            :minlength="minLength"
+            :maxlength="maxLength"
+            @input="update"
+            @blur="handleBlur"
+            @click="handleClick" />
 
-        <input :id="id" :name="name" :type="type" :class="[inputClass, { 'error': errorMessage }]"
-            :placeholder="placeholder" :value="modelValue" @input="update" @blur="validateInput" />
-
-        <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform opacity-0"
-            enter-to-class="opacity-100" leave-active-class="transition duration-200 ease-in"
-            leave-from-class="opacity-100" leave-to-class="transform opacity-0">
-            <span v-if="errorMessage" :class="messageClass" role="alert" aria-live="polite">
-                <strong>{{ errorMessage }}</strong>
-            </span>
-        </Transition>
+        <div v-if="errorMessage" class="label">
+            <span class="label-text-alt text-error">{{ errorMessage }}</span>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { watch, ref, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import type { PropType } from 'vue';
 
 interface InputProps {
-    label: string;
+    label?: string;
     name: string;
     id: string;
     placeholder?: string;
-    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url';
-    modelValue: string;
-    messageClass?: string;
-    labelClass?: string;
+    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'datetime-local' | 'time';
+    modelValue: string | number;
     inputClass?: string;
     required?: boolean;
+    readonly?: boolean;
     pattern?: string;
     minLength?: number;
     maxLength?: number;
+    min?: string | number;
+    max?: string | number;
+    step?: string | number;
 }
 
 const props = withDefaults(defineProps<InputProps>(), {
+    label: '',
     placeholder: '',
     type: 'text',
-    messageClass: 'text-red-500 text-sm mt-1',
-    labelClass: 'block text-lg font-bold mb-2',
-    inputClass: 'input input-primary input-bordered w-full',
-    required: false
+    inputClass: '',
+    required: false,
+    readonly: false
 });
 
 const emit = defineEmits<{
-    'update:modelValue': [value: string];
+    'update:modelValue': [value: string | number];
     'blur': [event: FocusEvent];
+    'click': [event: MouseEvent];
 }>();
 
 const errorMessage = ref<string | null>(null);
 const page = usePage();
 
-// Create a computed property for errors
 const errors = computed(() => page.props?.errors || {});
 
-// Then modify the watch to use the computed property
 watch(
     errors,
     (newErrors) => {
@@ -69,8 +82,24 @@ watch(
 
 const update = (event: Event) => {
     const target = event.target as HTMLInputElement;
-    emit('update:modelValue', target.value);
+    let value: string | number = target.value;
+
+    // Convert to number for number inputs
+    if (props.type === 'number' && value !== '') {
+        value = parseFloat(value) || 0;
+    }
+
+    emit('update:modelValue', value);
     validateInput();
+};
+
+const handleBlur = (event: FocusEvent) => {
+    emit('blur', event);
+    validateInput();
+};
+
+const handleClick = (event: MouseEvent) => {
+    emit('click', event);
 };
 
 const validateInput = () => {
@@ -83,7 +112,7 @@ const validateInput = () => {
 
     if (props.type === 'email' && props.modelValue) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(props.modelValue)) {
+        if (!emailRegex.test(String(props.modelValue))) {
             errorMessage.value = 'Please enter a valid email address';
             return;
         }
@@ -91,31 +120,32 @@ const validateInput = () => {
 
     if (props.pattern && props.modelValue) {
         const patternRegex = new RegExp(props.pattern);
-        if (!patternRegex.test(props.modelValue)) {
+        if (!patternRegex.test(String(props.modelValue))) {
             errorMessage.value = `Please match the requested format`;
             return;
         }
     }
 
-    if (props.minLength && props.modelValue.length < props.minLength) {
+    if (props.minLength && String(props.modelValue).length < props.minLength) {
         errorMessage.value = `Minimum length is ${props.minLength} characters`;
         return;
     }
 
-    if (props.maxLength && props.modelValue.length > props.maxLength) {
+    if (props.maxLength && String(props.modelValue).length > props.maxLength) {
         errorMessage.value = `Maximum length is ${props.maxLength} characters`;
         return;
     }
+
+    if (props.type === 'number' && typeof props.modelValue === 'number') {
+        if (props.min !== undefined && props.modelValue < Number(props.min)) {
+            errorMessage.value = `Minimum value is ${props.min}`;
+            return;
+        }
+
+        if (props.max !== undefined && props.modelValue > Number(props.max)) {
+            errorMessage.value = `Maximum value is ${props.max}`;
+            return;
+        }
+    }
 };
 </script>
-
-<style scoped>
-@reference "tailwindcss";
-.form-control {
-    @apply relative mb-4;
-}
-
-.input.error {
-    @apply border-red-500 focus:border-red-500 focus:ring-red-500;
-}
-</style>

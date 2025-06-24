@@ -1,76 +1,72 @@
 <template>
-    <div class="form-control">
+    <div class="form-control w-full">
         <label class="label">
-            <span class="block text-lg font-bold mb-2">{{ props.label }}</span>
+            <slot name="label">
+                <span class="label-text font-semibold">{{ label }}</span>
+            </slot>
         </label>
         <select
-            class="select select-primary w-full"
-            id="{{ props.id }}"
+            :id="id"
+            :name="name"
+            :class="['select select-bordered w-full', selectClass, { 'select-error': errorMessage }]"
             :value="modelValue"
+            :required="required"
             @input="update"
         >
-            <option
-                v-for="(item, index) in props.options"
-                :key="index"
-                :value="index"
-            >
+            <option v-for="(item, index) in options" :key="index" :value="index">
                 {{ item }}
             </option>
         </select>
-    </div>
 
-    <span class="invalid-feedback text-primary" role="alert">
-        <strong>{{ errorMessage }}</strong>
-    </span>
+        <div v-if="errorMessage" class="label">
+            <span class="label-text-alt text-error">{{ errorMessage }}</span>
+        </div>
+    </div>
 </template>
 
-<script setup lang="ts" >
-import { watch, ref, defineEmits } from "vue";
+<script setup lang="ts">
+import { watch, ref, computed } from "vue";
 import { usePage } from "@inertiajs/vue3";
 
-let errorMessage = ref(null);
+interface SelectProps {
+    label?: string;
+    name: string;
+    id: string;
+    options: Record<string, string>;
+    modelValue: string | number;
+    selectClass?: string;
+    required?: boolean;
+}
 
-watch(
-    () => usePage().props?.errors,
-    (v) => {
-        if (usePage().props.errors[props.name]) {
-            errorMessage.value = usePage().props.errors[props.name];
-        }
-    }
-);
-
-const props = defineProps({
-    label: {
-        type: String,
-        default: "",
-    },
-    name: {
-        type: String,
-        default: "",
-    },
-    id: {
-        type: String,
-        default: "",
-    },
-    placeholder: {
-        type: String,
-        default: "",
-    },
-    options: {
-        type: Object,
-        default: {},
-    },
-    modelValue: {
-        type: String,
-        default: "",
-    },
+const props = withDefaults(defineProps<SelectProps>(), {
+    label: '',
+    selectClass: '',
+    required: false
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
-const update = (event) => {
-    emit("update:modelValue", event.target.value);
+let errorMessage = ref<string | null>(null);
+const page = usePage();
+
+const errors = computed(() => page.props?.errors || {});
+
+watch(
+    errors,
+    (newErrors) => {
+        errorMessage.value = newErrors[props.name] || null;
+    },
+    { deep: true }
+);
+
+const update = (event: Event) => {
+    const target = event.target as HTMLSelectElement;
+    emit("update:modelValue", target.value);
+
+    if (props.required && !target.value) {
+        errorMessage.value = `${props.label} is required`;
+    } else {
+        errorMessage.value = null;
+    }
 };
 </script>
-
-<style></style>
