@@ -12,16 +12,14 @@
                 <span class="label-text font-semibold">{{ label }}</span>
             </slot>
         </label>
-
-        <div v-if="errorMessage" class="label">
-            <span class="label-text-alt text-error">{{ errorMessage }}</span>
+        <div v-if="$page.props.errors?.[name]" class="label">
+            <span class="label-text-alt text-error">{{ $page.props.errors[name] }}</span>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps({
     label: {
@@ -35,28 +33,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 
-let errorMessage = ref(null);
-let checkedToggle = ref(Boolean(props.modelValue));
-const page = usePage();
-
-const errors = computed(() => page.props?.errors || {});
-
-watch(
-    errors,
-    (newErrors) => {
-        errorMessage.value = newErrors[props.name] || null;
-    },
-    { deep: true }
-);
-
-watch(
-    () => props.modelValue,
-    (newValue) => {
-        checkedToggle.value = newValue;
-    }
-);
-
-watch(checkedToggle, (newValue) => {
-    emit('update:modelValue', newValue);
+const checkedToggle = computed({
+    get: () => props.modelValue,
+    set: (value) => emit('update:modelValue', value)
 });
 </script>

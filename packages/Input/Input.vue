@@ -9,7 +9,7 @@
             :id="id"
             :name="name"
             :type="type"
-            :class="['input input-bordered w-full', inputClass, { 'input-error': errorMessage }]"
+            :class="['input input-bordered w-full', inputClass, { 'input-error': $page.props.errors?.[name] || hasClientValidationError }]"
             :placeholder="placeholder"
             :value="modelValue"
             :readonly="readonly"
@@ -24,15 +24,16 @@
             @blur="handleBlur"
             @click="handleClick" />
 
-        <div v-if="errorMessage" class="label">
-            <span class="label-text-alt text-error">{{ errorMessage }}</span>
+        <div v-if="$page.props.errors?.[name] || hasClientValidationError" class="label">
+            <span class="label-text-alt text-error">
+                {{ $page.props.errors?.[name] || clientValidationError }}
+            </span>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { watch, ref, computed } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 interface InputProps {
     label?: string;
@@ -67,18 +68,48 @@ const emit = defineEmits<{
     'click': [event: MouseEvent];
 }>();
 
-const errorMessage = ref<string | null>(null);
-const page = usePage();
+// Client-side validation computed properties
+const clientValidationError = computed(() => {
+    if (props.required && !props.modelValue) {
+        return `${props.label} is required`;
+    }
 
-const errors = computed(() => page.props?.errors || {});
+    if (props.type === 'email' && props.modelValue) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(String(props.modelValue))) {
+            return 'Please enter a valid email address';
+        }
+    }
 
-watch(
-    errors,
-    (newErrors) => {
-        errorMessage.value = newErrors[props.name] || null;
-    },
-    { deep: true }
-);
+    if (props.pattern && props.modelValue) {
+        const patternRegex = new RegExp(props.pattern);
+        if (!patternRegex.test(String(props.modelValue))) {
+            return 'Please match the requested format';
+        }
+    }
+
+    if (props.minLength && String(props.modelValue).length < props.minLength) {
+        return `Minimum length is ${props.minLength} characters`;
+    }
+
+    if (props.maxLength && String(props.modelValue).length > props.maxLength) {
+        return `Maximum length is ${props.maxLength} characters`;
+    }
+
+    if (props.type === 'number' && typeof props.modelValue === 'number') {
+        if (props.min !== undefined && props.modelValue < Number(props.min)) {
+            return `Minimum value is ${props.min}`;
+        }
+
+        if (props.max !== undefined && props.modelValue > Number(props.max)) {
+            return `Maximum value is ${props.max}`;
+        }
+    }
+
+    return null;
+});
+
+const hasClientValidationError = computed(() => !!clientValidationError.value);
 
 const update = (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -90,62 +121,13 @@ const update = (event: Event) => {
     }
 
     emit('update:modelValue', value);
-    validateInput();
 };
 
 const handleBlur = (event: FocusEvent) => {
     emit('blur', event);
-    validateInput();
 };
 
 const handleClick = (event: MouseEvent) => {
     emit('click', event);
-};
-
-const validateInput = () => {
-    errorMessage.value = null;
-
-    if (props.required && !props.modelValue) {
-        errorMessage.value = `${props.label} is required`;
-        return;
-    }
-
-    if (props.type === 'email' && props.modelValue) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(String(props.modelValue))) {
-            errorMessage.value = 'Please enter a valid email address';
-            return;
-        }
-    }
-
-    if (props.pattern && props.modelValue) {
-        const patternRegex = new RegExp(props.pattern);
-        if (!patternRegex.test(String(props.modelValue))) {
-            errorMessage.value = `Please match the requested format`;
-            return;
-        }
-    }
-
-    if (props.minLength && String(props.modelValue).length < props.minLength) {
-        errorMessage.value = `Minimum length is ${props.minLength} characters`;
-        return;
-    }
-
-    if (props.maxLength && String(props.modelValue).length > props.maxLength) {
-        errorMessage.value = `Maximum length is ${props.maxLength} characters`;
-        return;
-    }
-
-    if (props.type === 'number' && typeof props.modelValue === 'number') {
-        if (props.min !== undefined && props.modelValue < Number(props.min)) {
-            errorMessage.value = `Minimum value is ${props.min}`;
-            return;
-        }
-
-        if (props.max !== undefined && props.modelValue > Number(props.max)) {
-            errorMessage.value = `Maximum value is ${props.max}`;
-            return;
-        }
-    }
 };
 </script>

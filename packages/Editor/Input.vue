@@ -192,7 +192,7 @@
                         'prose-a:text-primary hover:prose-a:text-primary-focus prose-a:no-underline hover:prose-a:underline',
                         'prose-ul:text-base-content prose-ol:text-base-content prose-li:text-base-content',
                         isFullscreen ? 'min-h-[calc(100vh-200px)] max-h-[calc(100vh-200px)]' : 'min-h-[150px] max-h-[500px]',
-                        { 'ring-2 ring-error ring-opacity-50': errorMessage }
+                        { 'ring-2 ring-error ring-opacity-50': $page.props.errors?.[name] || (required && !modelValue) }
                     ]"
                     style="outline: none !important;"
                 ></div>
@@ -209,7 +209,7 @@
                         'w-full resize-none p-6 bg-transparent border-none focus:outline-none transition-all duration-200',
                         'text-base-content placeholder:text-base-content/40 font-mono text-sm leading-relaxed',
                         isFullscreen ? 'min-h-[calc(100vh-200px)] max-h-[calc(100vh-200px)]' : 'min-h-[150px] max-h-[500px]',
-                        { 'ring-2 ring-error ring-opacity-50': errorMessage }
+                        { 'ring-2 ring-error ring-opacity-50': $page.props.errors?.[name] || (required && !modelValue) }
                     ]"
                     :value="markdownContent"
                     style="outline: none !important;"
@@ -261,15 +261,16 @@
             </div>
         </div>
 
-        <div v-if="errorMessage && !isFullscreen" class="label">
-            <span class="label-text-alt text-error font-medium">{{ errorMessage }}</span>
+        <div v-if="$page.props.errors?.[name] || (required && !modelValue && !isFullscreen)" class="label">
+            <span class="label-text-alt text-error font-medium">
+                {{ $page.props.errors?.[name] || `${label} is required` }}
+            </span>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, computed } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { ref, onMounted, computed } from 'vue';
 
 interface EditorProps {
     label?: string;
@@ -302,15 +303,11 @@ const emit = defineEmits<{
 
 const htmlEditorRef = ref<HTMLDivElement | null>(null);
 const markdownEditorRef = ref<HTMLTextAreaElement | null>(null);
-const errorMessage = ref<string | null>(null);
-const page = usePage();
 const isComposing = ref(false);
 const currentMode = ref<'html' | 'markdown'>(props.mode);
 const showPreview = ref(false);
 const markdownContent = ref('');
 const isFullscreen = ref(false);
-
-const errors = computed(() => page.props?.errors || {});
 
 // Simple markdown to HTML converter
 const markdownToHtml = (markdown: string): string => {
@@ -386,10 +383,6 @@ const renderedMarkdown = computed(() => {
     return markdownToHtml(markdownContent.value);
 });
 
-watch(errors, (newErrors) => {
-    errorMessage.value = newErrors[props.name] || null;
-}, { deep: true });
-
 const switchToMode = (mode: 'html' | 'markdown') => {
     if (mode === currentMode.value) return;
 
@@ -419,22 +412,15 @@ const switchToMode = (mode: 'html' | 'markdown') => {
     }, 50);
 };
 
-const toggleMode = () => {
-    const newMode = currentMode.value === 'html' ? 'markdown' : 'html';
-    switchToMode(newMode);
-};
-
 const handleHtmlInput = () => {
     if (isComposing.value || !htmlEditorRef.value) return;
     emit('update:modelValue', htmlEditorRef.value.innerHTML);
-    validateInput();
 };
 
 const handleMarkdownInput = (e: Event) => {
     const target = e.target as HTMLTextAreaElement;
     markdownContent.value = target.value;
     emit('update:modelValue', markdownToHtml(target.value));
-    validateInput();
 };
 
 const formatDoc = (command: string, value: string | null = null) => {
@@ -469,7 +455,6 @@ const handlePaste = (e: ClipboardEvent) => {
 
 const handleBlur = (event: FocusEvent) => {
     emit('blur', event);
-    validateInput();
 };
 
 const toggleFullscreen = () => {
@@ -527,43 +512,6 @@ const handleKeydown = (e: KeyboardEvent) => {
         handleMarkdownInput(e);
     }
 };
-
-const validateInput = () => {
-    errorMessage.value = null;
-    const content = currentMode.value === 'html'
-        ? (htmlEditorRef.value?.textContent || '')
-        : markdownContent.value;
-
-    if (props.required && !content.trim()) {
-        errorMessage.value = `${props.label} is required`;
-        return;
-    }
-
-    if (props.minLength && content.length < props.minLength) {
-        errorMessage.value = `Minimum length is ${props.minLength} characters`;
-        return;
-    }
-
-    if (props.maxLength && content.length > props.maxLength) {
-        errorMessage.value = `Maximum length is ${props.maxLength} characters`;
-        return;
-    }
-};
-
-watch(() => props.modelValue, (newValue) => {
-    if (isComposing.value) return;
-
-    if (currentMode.value === 'html') {
-        if (htmlEditorRef.value && newValue !== htmlEditorRef.value.innerHTML) {
-            htmlEditorRef.value.innerHTML = newValue || '';
-        }
-    } else {
-        const markdownValue = htmlToMarkdown(newValue || '');
-        if (markdownValue !== markdownContent.value) {
-            markdownContent.value = markdownValue;
-        }
-    }
-});
 
 onMounted(() => {
     if (!htmlEditorRef.value) return;

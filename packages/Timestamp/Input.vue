@@ -25,9 +25,9 @@
                         'input input-bordered w-full pr-20 font-mono text-sm',
                         inputClass,
                         {
-                            'input-error border-error focus:border-error': errorMessage,
+                            'input-error border-error focus:border-error': $page.props.errors?.[name] || hasClientValidationError,
                             'input-success border-success': isValid && inputValue,
-                            'focus:border-primary': !errorMessage
+                            'focus:border-primary': !($page.props.errors?.[name] || hasClientValidationError)
                         }
                     ]"
                     v-model="inputValue"
@@ -35,7 +35,7 @@
                     :min="min"
                     :max="max"
                     :placeholder="placeholder || 'Select date and time...'"
-                    @blur="validateInput"
+                    @blur="onBlur"
                     @focus="onFocus"
                     @input="onInput" />
 
@@ -79,7 +79,7 @@
         </div>
 
         <!-- Display Information -->
-        <div v-if="inputValue && !errorMessage" class="mt-2 space-y-1">
+        <div v-if="inputValue && !($page.props.errors?.[name] || hasClientValidationError)" class="mt-2 space-y-1">
             <!-- Formatted Display -->
             <div class="bg-base-200 rounded-lg p-3 border border-base-300">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -115,17 +115,17 @@
         </div>
 
         <!-- Validation Error -->
-        <div v-if="errorMessage" class="label">
+        <div v-if="$page.props.errors?.[name] || hasClientValidationError" class="label">
             <span class="label-text-alt text-error flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {{ errorMessage }}
+                {{ $page.props.errors?.[name] || clientValidationError }}
             </span>
         </div>
 
         <!-- Help Text -->
-        <div v-if="helpText && !errorMessage" class="label">
+        <div v-if="helpText && !($page.props.errors?.[name] || hasClientValidationError)" class="label">
             <span class="label-text-alt text-base-content/60 flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -137,8 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 interface TimestampProps {
     label?: string;
@@ -169,15 +168,40 @@ const emit = defineEmits<{
     'focus': [event: FocusEvent];
 }>();
 
-const errorMessage = ref<string | null>(null);
-const isValid = ref(false);
-const page = usePage();
-
-const errors = computed(() => page.props?.errors || {});
-
 const inputValue = computed({
     get: () => props.modelValue,
     set: (value) => emit('update:modelValue', value)
+});
+
+// Client-side validation
+const clientValidationError = computed(() => {
+    if (props.required && !inputValue.value) {
+        return `${props.label} is required`;
+    }
+
+    if (inputValue.value) {
+        const date = new Date(inputValue.value);
+
+        if (isNaN(date.getTime())) {
+            return 'Invalid date format';
+        }
+
+        if (props.min && inputValue.value < props.min) {
+            return 'Date must be after minimum date';
+        }
+
+        if (props.max && inputValue.value > props.max) {
+            return 'Date must be before maximum date';
+        }
+    }
+
+    return null;
+});
+
+const hasClientValidationError = computed(() => !!clientValidationError.value);
+
+const isValid = computed(() => {
+    return inputValue.value && !clientValidationError.value;
 });
 
 // Preset options for quick selection
@@ -260,76 +284,31 @@ const relativeTimeClass = computed(() => {
     return isPast ? 'text-warning' : 'text-success';
 });
 
-// Watch for errors from server
-watch(
-    errors,
-    (newErrors) => {
-        errorMessage.value = newErrors[props.name] || null;
-    },
-    { deep: true }
-);
-
 // Methods
-const validateInput = () => {
-    errorMessage.value = null;
-    isValid.value = false;
-
-    if (props.required && !inputValue.value) {
-        errorMessage.value = `${props.label} is required`;
-        return;
-    }
-
-    if (inputValue.value) {
-        const date = new Date(inputValue.value);
-
-        if (isNaN(date.getTime())) {
-            errorMessage.value = 'Invalid date format';
-            return;
-        }
-
-        if (props.min && inputValue.value < props.min) {
-            errorMessage.value = 'Date must be after minimum date';
-            return;
-        }
-
-        if (props.max && inputValue.value > props.max) {
-            errorMessage.value = 'Date must be before maximum date';
-            return;
-        }
-
-        isValid.value = true;
-    }
-};
-
 const onFocus = (event: FocusEvent) => {
     emit('focus', event);
 };
 
+const onBlur = (event: FocusEvent) => {
+    emit('blur', event);
+};
+
 const onInput = () => {
-    validateInput();
+    // Validation happens automatically via computed properties
 };
 
 const setToNow = () => {
     const now = new Date();
     inputValue.value = now.toISOString().slice(0, 16);
-    validateInput();
 };
 
 const clearValue = () => {
     inputValue.value = '';
-    errorMessage.value = null;
-    isValid.value = false;
 };
 
 const applyPreset = (preset: any) => {
     inputValue.value = preset.getValue();
-    validateInput();
 };
-
-// Initial validation
-watch(() => props.modelValue, () => {
-    validateInput();
-}, { immediate: true });
 </script>
 
 <style scoped>
