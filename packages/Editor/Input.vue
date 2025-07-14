@@ -270,7 +270,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 
 interface EditorProps {
     label?: string;
@@ -308,6 +308,27 @@ const currentMode = ref<'html' | 'markdown'>(props.mode);
 const showPreview = ref(false);
 const markdownContent = ref('');
 const isFullscreen = ref(false);
+const isUpdatingFromParent = ref(false);
+
+const updateEditorContent = (content: string) => {
+    if (currentMode.value === 'html') {
+        if (htmlEditorRef.value && htmlEditorRef.value.innerHTML !== content) {
+            htmlEditorRef.value.innerHTML = content;
+        }
+    } else {
+        const markdown = htmlToMarkdown(content);
+        if (markdownContent.value !== markdown) {
+            markdownContent.value = markdown;
+        }
+    }
+};
+
+// Watch for changes in modelValue prop from parent
+watch(() => props.modelValue, (newValue) => {
+    if (isUpdatingFromParent.value) return;
+
+    updateEditorContent(newValue);
+}, { immediate: true });
 
 // Simple markdown to HTML converter
 const markdownToHtml = (markdown: string): string => {
@@ -394,33 +415,43 @@ const switchToMode = (mode: 'html' | 'markdown') => {
         // Convert Markdown to HTML
         const markdown = markdownContent.value;
         const htmlContent = markdownToHtml(markdown);
-        if (htmlEditorRef.value) {
-            htmlEditorRef.value.innerHTML = htmlContent;
-        }
+        nextTick(() => {
+            if (htmlEditorRef.value) {
+                htmlEditorRef.value.innerHTML = htmlContent;
+            }
+        });
     }
 
     currentMode.value = mode;
     emit('modeChange', mode);
 
     // Focus the appropriate editor
-    setTimeout(() => {
+    nextTick(() => {
         if (mode === 'html' && htmlEditorRef.value) {
             htmlEditorRef.value.focus();
         } else if (mode === 'markdown' && markdownEditorRef.value) {
             markdownEditorRef.value.focus();
         }
-    }, 50);
+    });
 };
 
 const handleHtmlInput = () => {
     if (isComposing.value || !htmlEditorRef.value) return;
+    isUpdatingFromParent.value = true;
     emit('update:modelValue', htmlEditorRef.value.innerHTML);
+    nextTick(() => {
+        isUpdatingFromParent.value = false;
+    });
 };
 
 const handleMarkdownInput = (e: Event) => {
     const target = e.target as HTMLTextAreaElement;
     markdownContent.value = target.value;
+    isUpdatingFromParent.value = true;
     emit('update:modelValue', markdownToHtml(target.value));
+    nextTick(() => {
+        isUpdatingFromParent.value = false;
+    });
 };
 
 const formatDoc = (command: string, value: string | null = null) => {
@@ -463,13 +494,13 @@ const toggleFullscreen = () => {
     if (isFullscreen.value) {
         document.body.style.overflow = 'hidden';
         // Focus the appropriate editor after entering fullscreen
-        setTimeout(() => {
+        nextTick(() => {
             if (currentMode.value === 'html' && htmlEditorRef.value) {
                 htmlEditorRef.value.focus();
             } else if (currentMode.value === 'markdown' && markdownEditorRef.value) {
                 markdownEditorRef.value.focus();
             }
-        }, 100);
+        });
     } else {
         document.body.style.overflow = '';
     }
@@ -529,13 +560,7 @@ onMounted(() => {
     htmlEditorRef.value.addEventListener('compositionend', handleCompositionEnd);
 
     // Initialize content
-    if (props.modelValue) {
-        if (currentMode.value === 'html') {
-            htmlEditorRef.value.innerHTML = props.modelValue;
-        } else {
-            markdownContent.value = htmlToMarkdown(props.modelValue);
-        }
-    }
+    updateEditorContent(props.modelValue);
 
     // Cleanup fullscreen on unmount
     return () => {
