@@ -1,343 +1,329 @@
 <template>
-    <div class="form-control w-full">
-        <!-- Label -->
-        <label :for="id" class="label" v-if="label || $slots.label">
-            <slot name="label">
-                <span class="label-text font-semibold flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    {{ label }}
-                    <div v-if="required" class="badge badge-error badge-sm">Required</div>
-                </span>
-            </slot>
-        </label>
+  <div class="form-control w-full">
+    <!-- Label -->
+    <label v-if="label" class="label">
+      <span class="label-text font-semibold">{{ label }}</span>
+      <span v-if="required" class="label-text-alt text-error">*</span>
+    </label>
 
-        <!-- Main Input Container -->
-        <div class="relative">
-            <!-- DateTime Input -->
-            <div class="relative">
-                <input
-                    :id="id"
-                    :name="name"
-                    type="datetime-local"
-                    :class="[
-                        'input input-bordered w-full pr-20 font-mono text-sm',
-                        inputClass,
-                        {
-                            'input-error border-error focus:border-error': $page.props.errors?.[name] || hasClientValidationError,
-                            'input-success border-success': isValid && inputValue,
-                            'focus:border-primary': !($page.props.errors?.[name] || hasClientValidationError)
-                        }
-                    ]"
-                    v-model="inputValue"
-                    :required="required"
-                    :min="min"
-                    :max="max"
-                    :placeholder="placeholder || 'Select date and time...'"
-                    @blur="onBlur"
-                    @focus="onFocus"
-                    @input="onInput" />
+    <!-- Date and Time Inputs -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Date Input -->
+      <div class="relative">
+        <input
+          :id="id + '_date'"
+          type="date"
+          :value="dateValue"
+          @input="handleDateInput"
+          @change="handleDateChange"
+          :required="required"
+          :class="[
+            'input input-bordered w-full',
+            errorMessage ? 'input-error' : 'focus:input-primary'
+          ]"
+        />
+        <label class="text-xs text-gray-500 mt-1">Date</label>
+      </div>
 
-                <!-- Quick Action Buttons -->
-                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                    <!-- Now Button -->
-                    <div class="tooltip tooltip-left" data-tip="Set to current time">
-                        <button type="button"
-                                @click="setToNow"
-                                class="btn btn-xs btn-ghost hover:btn-primary text-primary hover:text-primary-content">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <!-- Clear Button -->
-                    <div class="tooltip tooltip-left" data-tip="Clear date">
-                        <button type="button"
-                                @click="clearValue"
-                                v-if="inputValue"
-                                class="btn btn-xs btn-ghost hover:btn-error text-error hover:text-error-content">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Preset Options -->
-            <div v-if="showPresets" class="mt-2 flex flex-wrap gap-1">
-                <button type="button"
-                        v-for="preset in presetOptions"
-                        :key="preset.label"
-                        @click="applyPreset(preset)"
-                        class="btn btn-xs btn-outline btn-primary">
-                    {{ preset.label }}
-                </button>
-            </div>
-        </div>
-
-        <!-- Display Information -->
-        <div v-if="inputValue && !($page.props.errors?.[name] || hasClientValidationError)" class="mt-2 space-y-1">
-            <!-- Formatted Display -->
-            <div class="bg-base-200 rounded-lg p-3 border border-base-300">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <!-- Local Time -->
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span class="text-base-content/70">Local:</span>
-                        <span class="font-medium">{{ formattedLocalTime }}</span>
-                    </div>
-
-                    <!-- UTC Time -->
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
-                        </svg>
-                        <span class="text-base-content/70">UTC:</span>
-                        <span class="font-medium">{{ formattedUtcTime }}</span>
-                    </div>
-
-                    <!-- Relative Time -->
-                    <div class="flex items-center gap-2 sm:col-span-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span class="text-base-content/70">Relative:</span>
-                        <span class="font-medium" :class="relativeTimeClass">{{ relativeTime }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Validation Error -->
-        <div v-if="$page.props.errors?.[name] || hasClientValidationError" class="label">
-            <span class="label-text-alt text-error flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {{ $page.props.errors?.[name] || clientValidationError }}
-            </span>
-        </div>
-
-        <!-- Help Text -->
-        <div v-if="helpText && !($page.props.errors?.[name] || hasClientValidationError)" class="label">
-            <span class="label-text-alt text-base-content/60 flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {{ helpText }}
-            </span>
-        </div>
+      <!-- Time Input -->
+      <div class="relative">
+        <input
+          :id="id + '_time'"
+          type="time"
+          :value="timeValue"
+          @input="handleTimeInput"
+          @change="handleTimeChange"
+          :class="[
+            'input input-bordered w-full',
+            errorMessage ? 'input-error' : 'focus:input-primary'
+          ]"
+          step="900"
+        />
+        <label class="text-xs text-gray-500 mt-1">Time</label>
+      </div>
     </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="flex gap-2 mt-3 flex-wrap">
+      <button
+        type="button"
+        @click="setToNow"
+        class="btn btn-xs btn-outline"
+      >
+        📅 Now
+      </button>
+      <button
+        type="button"
+        @click="setToday9AM"
+        class="btn btn-xs btn-outline"
+      >
+        🌅 Today 9AM
+      </button>
+      <button
+        type="button"
+        @click="setToday5PM"
+        class="btn btn-xs btn-outline"
+      >
+        🌆 Today 5PM
+      </button>
+      <button
+        type="button"
+        @click="setTomorrow9AM"
+        class="btn btn-xs btn-outline"
+      >
+        ➡️ Tomorrow 9AM
+      </button>
+      <button
+        type="button"
+        @click="clearDateTime"
+        class="btn btn-xs btn-outline btn-error"
+        v-if="modelValue"
+      >
+        ❌ Clear
+      </button>
+    </div>
+
+    <!-- Display Current Selection -->
+    <div v-if="modelValue" class="mt-2 p-2 bg-base-200 rounded text-sm">
+      <strong>Selected:</strong> {{ formatDisplayValue }}
+    </div>
+
+    <!-- Error Message -->
+    <label v-if="errorMessage" class="label">
+      <span class="label-text-alt text-error">{{ errorMessage }}</span>
+    </label>
+
+    <!-- Hidden Input for Form Submission -->
+    <input
+      :id="id"
+      :name="name"
+      type="datetime-local"
+      :value="modelValue"
+      class="hidden"
+      readonly
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 
-interface TimestampProps {
-    label?: string;
-    name: string;
-    id: string;
-    placeholder?: string;
-    modelValue: string;
-    inputClass?: string;
-    required?: boolean;
-    min?: string;
-    max?: string;
-    helpText?: string;
-    showPresets?: boolean;
+interface Props {
+  label?: string
+  name: string
+  id: string
+  modelValue: string
+  required?: boolean
+  min?: string
+  max?: string
 }
 
-const props = withDefaults(defineProps<TimestampProps>(), {
-    label: '',
-    placeholder: '',
-    inputClass: '',
-    required: false,
-    helpText: '',
-    showPresets: true
-});
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-    'update:modelValue': [value: string];
-    'blur': [event: FocusEvent];
-    'focus': [event: FocusEvent];
-}>();
+  'update:modelValue': [value: string]
+}>()
 
-const inputValue = computed({
-    get: () => props.modelValue,
-    set: (value) => emit('update:modelValue', value)
-});
+const errorMessage = ref('')
+const page = usePage()
 
-// Client-side validation
-const clientValidationError = computed(() => {
-    if (props.required && !inputValue.value) {
-        return `${props.label} is required`;
+// Computed values for separate date and time
+const dateValue = computed(() => {
+  if (!props.modelValue) return ''
+  try {
+    const date = new Date(props.modelValue)
+    if (isNaN(date.getTime())) return ''
+
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+  } catch {
+    return ''
+  }
+})
+
+const timeValue = computed(() => {
+  if (!props.modelValue) return ''
+  try {
+    const date = new Date(props.modelValue)
+    if (isNaN(date.getTime())) return ''
+
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+
+    return `${hours}:${minutes}`
+  } catch {
+    return ''
+  }
+})
+
+const formatDisplayValue = computed(() => {
+  if (!props.modelValue) return ''
+  try {
+    const date = new Date(props.modelValue)
+    if (isNaN(date.getTime())) return ''
+
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
     }
 
-    if (inputValue.value) {
-        const date = new Date(inputValue.value);
+    return date.toLocaleDateString('en-US', options)
+  } catch {
+    return ''
+  }
+})
 
-        if (isNaN(date.getTime())) {
-            return 'Invalid date format';
-        }
+// Internal state to track current date and time
+const currentDate = ref('')
+const currentTime = ref('')
 
-        if (props.min && inputValue.value < props.min) {
-            return 'Date must be after minimum date';
-        }
+// Methods to handle input changes
+const handleDateInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  currentDate.value = target.value
+  updateDateTime()
+}
 
-        if (props.max && inputValue.value > props.max) {
-            return 'Date must be before maximum date';
-        }
-    }
+const handleDateChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  currentDate.value = target.value
+  updateDateTime()
+}
 
-    return null;
-});
+const handleTimeInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  currentTime.value = target.value
+  updateDateTime()
+}
 
-const hasClientValidationError = computed(() => !!clientValidationError.value);
+const handleTimeChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  currentTime.value = target.value
+  updateDateTime()
+}
 
-const isValid = computed(() => {
-    return inputValue.value && !clientValidationError.value;
-});
+const updateDateTime = () => {
+  if (currentDate.value && currentTime.value) {
+    const dateTimeString = `${currentDate.value}T${currentTime.value}`
+    emit('update:modelValue', dateTimeString)
+    validateInput(dateTimeString)
+  } else if (!currentDate.value && !currentTime.value) {
+    emit('update:modelValue', '')
+    errorMessage.value = ''
+  }
+}
 
-// Preset options for quick selection
-const presetOptions = computed(() => [
-    {
-        label: 'Now',
-        getValue: () => new Date().toISOString().slice(0, 16)
-    },
-    {
-        label: 'Tomorrow',
-        getValue: () => {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(9, 0, 0, 0);
-            return tomorrow.toISOString().slice(0, 16);
-        }
-    },
-    {
-        label: 'Next Week',
-        getValue: () => {
-            const nextWeek = new Date();
-            nextWeek.setDate(nextWeek.getDate() + 7);
-            nextWeek.setHours(9, 0, 0, 0);
-            return nextWeek.toISOString().slice(0, 16);
-        }
-    },
-    {
-        label: 'Next Month',
-        getValue: () => {
-            const nextMonth = new Date();
-            nextMonth.setMonth(nextMonth.getMonth() + 1);
-            nextMonth.setDate(1);
-            nextMonth.setHours(9, 0, 0, 0);
-            return nextMonth.toISOString().slice(0, 16);
-        }
-    }
-]);
-
-// Formatted time displays
-const formattedLocalTime = computed(() => {
-    if (!inputValue.value) return '';
-    const date = new Date(inputValue.value);
-    return date.toLocaleString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-});
-
-const formattedUtcTime = computed(() => {
-    if (!inputValue.value) return '';
-    const date = new Date(inputValue.value);
-    return date.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-});
-
-const relativeTime = computed(() => {
-    if (!inputValue.value) return '';
-    const date = new Date(inputValue.value);
-    const now = new Date();
-    const diffMs = date.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / 60000);
-    const diffHours = Math.round(diffMins / 60);
-    const diffDays = Math.round(diffHours / 24);
-
-    if (Math.abs(diffMins) < 1) return 'Just now';
-    if (Math.abs(diffMins) < 60) return `${diffMins > 0 ? 'In' : ''} ${Math.abs(diffMins)} minute${Math.abs(diffMins) !== 1 ? 's' : ''} ${diffMins < 0 ? 'ago' : ''}`;
-    if (Math.abs(diffHours) < 24) return `${diffHours > 0 ? 'In' : ''} ${Math.abs(diffHours)} hour${Math.abs(diffHours) !== 1 ? 's' : ''} ${diffHours < 0 ? 'ago' : ''}`;
-    return `${diffDays > 0 ? 'In' : ''} ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''} ${diffDays < 0 ? 'ago' : ''}`;
-});
-
-const relativeTimeClass = computed(() => {
-    if (!inputValue.value) return '';
-    const date = new Date(inputValue.value);
-    const now = new Date();
-    const isPast = date < now;
-    return isPast ? 'text-warning' : 'text-success';
-});
-
-// Methods
-const onFocus = (event: FocusEvent) => {
-    emit('focus', event);
-};
-
-const onBlur = (event: FocusEvent) => {
-    emit('blur', event);
-};
-
-const onInput = () => {
-    // Validation happens automatically via computed properties
-};
-
+// Quick action methods
 const setToNow = () => {
-    const now = new Date();
-    inputValue.value = now.toISOString().slice(0, 16);
-};
+  const now = new Date()
+  setDateTime(now)
+}
 
-const clearValue = () => {
-    inputValue.value = '';
-};
+const setToday9AM = () => {
+  const today = new Date()
+  today.setHours(9, 0, 0, 0)
+  setDateTime(today)
+}
 
-const applyPreset = (preset: any) => {
-    inputValue.value = preset.getValue();
-};
+const setToday5PM = () => {
+  const today = new Date()
+  today.setHours(17, 0, 0, 0)
+  setDateTime(today)
+}
+
+const setTomorrow9AM = () => {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(9, 0, 0, 0)
+  setDateTime(tomorrow)
+}
+
+const setDateTime = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+
+  currentDate.value = `${year}-${month}-${day}`
+  currentTime.value = `${hours}:${minutes}`
+
+  const dateTimeString = `${currentDate.value}T${currentTime.value}`
+  emit('update:modelValue', dateTimeString)
+}
+
+const clearDateTime = () => {
+  currentDate.value = ''
+  currentTime.value = ''
+  emit('update:modelValue', '')
+  errorMessage.value = ''
+}
+
+const validateInput = (value: string) => {
+  errorMessage.value = ''
+
+  if (props.required && !value) {
+    errorMessage.value = `${props.label || 'This field'} is required`
+    return
+  }
+
+  if (value && props.min && value < props.min) {
+    const minDate = new Date(props.min)
+    errorMessage.value = `Date must be after ${minDate.toLocaleDateString()}`
+    return
+  }
+
+  if (value && props.max && value > props.max) {
+    const maxDate = new Date(props.max)
+    errorMessage.value = `Date must be before ${maxDate.toLocaleDateString()}`
+    return
+  }
+}
+
+// Initialize from modelValue
+watch(() => props.modelValue, (newValue) => {
+  if (newValue) {
+    try {
+      const date = new Date(newValue)
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+
+        currentDate.value = `${year}-${month}-${day}`
+        currentTime.value = `${hours}:${minutes}`
+      }
+    } catch {
+      currentDate.value = ''
+      currentTime.value = ''
+    }
+  } else {
+    currentDate.value = ''
+    currentTime.value = ''
+  }
+}, { immediate: true })
+
+// Watch for Inertia errors
+watch(
+  () => page.props.errors,
+  (newErrors) => {
+    if (newErrors && newErrors[props.name]) {
+      errorMessage.value = newErrors[props.name]
+    } else if (!newErrors) {
+      errorMessage.value = ''
+    }
+  },
+  { deep: true, immediate: true }
+)
 </script>
-
-<style scoped>
-/* Custom focus styles for datetime input */
-input[type="datetime-local"]:focus {
-    outline: none;
-}
-
-/* Improve datetime input appearance */
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    background: transparent;
-    bottom: 0;
-    color: transparent;
-    cursor: pointer;
-    height: auto;
-    left: 0;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: auto;
-}
-
-/* Custom styling for validation states */
-.input-success {
-    border-color: oklch(var(--su));
-}
-
-.input-success:focus {
-    border-color: oklch(var(--su));
-    box-shadow: 0 0 0 2px oklch(var(--su) / 0.2);
-}
-</style>
