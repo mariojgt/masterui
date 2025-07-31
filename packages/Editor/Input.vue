@@ -309,11 +309,40 @@ const showPreview = ref(false);
 const markdownContent = ref('');
 const isFullscreen = ref(false);
 const isUpdatingFromParent = ref(false);
+const lastKnownHtmlContent = ref('');
 
 const updateEditorContent = (content: string) => {
+    // Only update if content actually changed to prevent cursor issues
+    if (lastKnownHtmlContent.value === content) return;
+
     if (currentMode.value === 'html') {
         if (htmlEditorRef.value && htmlEditorRef.value.innerHTML !== content) {
+            // Store cursor position
+            const selection = window.getSelection();
+            const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+            const cursorOffset = range ? range.startOffset : 0;
+            const parentNode = range ? range.startContainer : null;
+
             htmlEditorRef.value.innerHTML = content;
+            lastKnownHtmlContent.value = content;
+
+            // Restore cursor position if possible
+            if (parentNode && htmlEditorRef.value.contains(parentNode)) {
+                try {
+                    const newRange = document.createRange();
+                    newRange.setStart(parentNode, Math.min(cursorOffset, parentNode.textContent?.length || 0));
+                    newRange.collapse(true);
+                    selection?.removeAllRanges();
+                    selection?.addRange(newRange);
+                } catch (e) {
+                    // Cursor restoration failed, place at end
+                    const newRange = document.createRange();
+                    newRange.selectNodeContents(htmlEditorRef.value);
+                    newRange.collapse(false);
+                    selection?.removeAllRanges();
+                    selection?.addRange(newRange);
+                }
+            }
         }
     } else {
         const markdown = htmlToMarkdown(content);
@@ -326,78 +355,87 @@ const updateEditorContent = (content: string) => {
 // Watch for changes in modelValue prop from parent
 watch(() => props.modelValue, (newValue) => {
     if (isUpdatingFromParent.value) return;
-
     updateEditorContent(newValue);
 }, { immediate: true });
 
-// Simple markdown to HTML converter
+// Improved markdown to HTML converter that preserves formatting
 const markdownToHtml = (markdown: string): string => {
+    if (!markdown.trim()) return '';
+
     let html = markdown
-        // Headers
+        // Preserve double line breaks as paragraph separators
+        .replace(/\n\n/g, '</p><p>')
+        // Headers (must come before other formatting)
         .replace(/^### (.*$)/gim, '<h3>$1</h3>')
         .replace(/^## (.*$)/gim, '<h2>$1</h2>')
         .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-        // Bold
-        .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-        .replace(/__(.*?)__/gim, '<strong>$1</strong>')
+        // Bold (must come before italic)
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/__(.*?)__/g, '<strong>$1</strong>')
         // Italic
-        .replace(/\*(.*)\*/gim, '<em>$1</em>')
-        .replace(/_(.*?)_/gim, '<em>$1</em>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/_(.*?)_/g, '<em>$1</em>')
         // Strikethrough
-        .replace(/~~(.*?)~~/gim, '<del>$1</del>')
+        .replace(/~~(.*?)~~/g, '<del>$1</del>')
         // Code
-        .replace(/`(.*?)`/gim, '<code>$1</code>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
         // Links
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>')
-        // Line breaks
-        .replace(/\n\n/gim, '</p><p>')
-        .replace(/\n/gim, '<br>')
-        // Lists
-        .replace(/^\* (.*$)/gim, '<li>$1</li>')
-        .replace(/^\d+\. (.*$)/gim, '<li>$1</li>');
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+        // Single line breaks as <br>
+        .replace(/\n/g, '<br>');
 
-    // Wrap in paragraphs if not already wrapped
-    if (!html.includes('<h') && !html.includes('<li>')) {
+    // Handle unordered lists
+    html = html.replace(/^\* (.*)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+
+    // Handle ordered lists
+    html = html.replace(/^\d+\. (.*)$/gm, '<li>$1</li>');
+
+    // Wrap content in paragraphs if it doesn't start with a block element
+    if (!html.match(/^<(h[1-6]|p|ul|ol|div)/)) {
         html = '<p>' + html + '</p>';
     }
 
-    // Clean up list items
-    html = html.replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>');
+    // Clean up empty paragraphs
+    html = html.replace(/<p><\/p>/g, '');
 
     return html;
 };
 
-// Simple HTML to markdown converter
+// Improved HTML to markdown converter that preserves structure
 const htmlToMarkdown = (html: string): string => {
-    return html
+    if (!html.trim()) return '';
+
+    let markdown = html
         // Headers
-        .replace(/<h1[^>]*>(.*?)<\/h1>/gim, '# $1\n\n')
-        .replace(/<h2[^>]*>(.*?)<\/h2>/gim, '## $1\n\n')
-        .replace(/<h3[^>]*>(.*?)<\/h3>/gim, '### $1\n\n')
+        .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+        .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+        .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
         // Bold
-        .replace(/<strong[^>]*>(.*?)<\/strong>/gim, '**$1**')
-        .replace(/<b[^>]*>(.*?)<\/b>/gim, '**$1**')
+        .replace(/<(strong|b)[^>]*>(.*?)<\/\1>/gi, '**$2**')
         // Italic
-        .replace(/<em[^>]*>(.*?)<\/em>/gim, '*$1*')
-        .replace(/<i[^>]*>(.*?)<\/i>/gim, '*$1*')
+        .replace(/<(em|i)[^>]*>(.*?)<\/\1>/gi, '*$2*')
         // Strikethrough
-        .replace(/<del[^>]*>(.*?)<\/del>/gim, '~~$1~~')
-        .replace(/<s[^>]*>(.*?)<\/s>/gim, '~~$1~~')
+        .replace(/<(del|s)[^>]*>(.*?)<\/\1>/gi, '~~$2~~')
+        // Code
+        .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
         // Links
-        .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gim, '[$2]($1)')
+        .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
         // Lists
-        .replace(/<li[^>]*>(.*?)<\/li>/gim, '* $1\n')
-        .replace(/<ul[^>]*>|<\/ul>/gim, '')
-        .replace(/<ol[^>]*>|<\/ol>/gim, '')
-        // Line breaks and paragraphs
-        .replace(/<br[^>]*>/gim, '\n')
-        .replace(/<p[^>]*>/gim, '')
-        .replace(/<\/p>/gim, '\n\n')
+        .replace(/<li[^>]*>(.*?)<\/li>/gi, '* $1\n')
+        .replace(/<\/?(ul|ol)[^>]*>/gi, '')
+        // Paragraphs and line breaks
+        .replace(/<\/p><p[^>]*>/gi, '\n\n')
+        .replace(/<p[^>]*>/gi, '')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<br[^>]*\/?>/gi, '\n')
         // Remove remaining HTML tags
-        .replace(/<[^>]*>/gim, '')
+        .replace(/<[^>]*>/g, '')
         // Clean up extra newlines
-        .replace(/\n\n\n+/gim, '\n\n')
+        .replace(/\n{3,}/g, '\n\n')
         .trim();
+
+    return markdown;
 };
 
 const renderedMarkdown = computed(() => {
@@ -418,6 +456,7 @@ const switchToMode = (mode: 'html' | 'markdown') => {
         nextTick(() => {
             if (htmlEditorRef.value) {
                 htmlEditorRef.value.innerHTML = htmlContent;
+                lastKnownHtmlContent.value = htmlContent;
             }
         });
     }
@@ -437,8 +476,12 @@ const switchToMode = (mode: 'html' | 'markdown') => {
 
 const handleHtmlInput = () => {
     if (isComposing.value || !htmlEditorRef.value) return;
+
+    const content = htmlEditorRef.value.innerHTML;
+    lastKnownHtmlContent.value = content;
+
     isUpdatingFromParent.value = true;
-    emit('update:modelValue', htmlEditorRef.value.innerHTML);
+    emit('update:modelValue', content);
     nextTick(() => {
         isUpdatingFromParent.value = false;
     });
@@ -476,12 +519,10 @@ const formatDoc = (command: string, value: string | null = null) => {
 };
 
 const handlePaste = (e: ClipboardEvent) => {
-    e.preventDefault();
-    const text = e.clipboardData?.getData('text/plain');
-    if (text) {
-        document.execCommand('insertText', false, text);
-    }
-    handleHtmlInput();
+    // Allow default paste behavior to preserve formatting
+    setTimeout(() => {
+        handleHtmlInput();
+    }, 0);
 };
 
 const handleBlur = (event: FocusEvent) => {
@@ -561,6 +602,7 @@ onMounted(() => {
 
     // Initialize content
     updateEditorContent(props.modelValue);
+    lastKnownHtmlContent.value = props.modelValue;
 
     // Cleanup fullscreen on unmount
     return () => {
@@ -682,5 +724,14 @@ textarea {
 
 .fade-enter-from, .fade-leave-to {
     opacity: 0;
+}
+
+/* Preserve whitespace and formatting */
+.prose {
+    white-space: pre-wrap;
+}
+
+.prose p {
+    white-space: pre-wrap;
 }
 </style>
