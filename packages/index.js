@@ -12,6 +12,7 @@ import Alert from "./Alert/Alert.vue";
 import Chips from "./Chips/Chips.vue";
 import Editor from "./Editor/Input.vue";
 import Timestamp from "./Timestamp/Input.vue";
+import SelectWithSearch from "./SelectWithSearch/SearchableSelect.vue";
 
 // Export the Vue components
 export {
@@ -27,5 +28,6 @@ export {
   Alert,
   Chips,
   Editor,
-  Timestamp
+  Timestamp,
+  SelectWithSearch
 };
