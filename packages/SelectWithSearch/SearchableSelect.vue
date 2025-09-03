@@ -82,14 +82,23 @@
                         'bg-primary/20 border-l-4 border-primary': option.value === modelValue && index !== highlightedIndex
                     }"
                 >
-                    <a class="flex items-center justify-between px-3 py-2 rounded-lg">
-                        <span class="truncate flex-1 text-sm">{{ option.label }}</span>
+                    <div class="flex items-center justify-between px-3 py-2 rounded-lg">
+                        <div
+                            class="truncate flex-1 text-sm"
+                            v-if="renderHtml"
+                            v-html="option.label"
+                        ></div>
+                        <span
+                            class="truncate flex-1 text-sm"
+                            v-else
+                            v-text="option.label"
+                        ></span>
                         <span v-if="option.value === modelValue" class="ml-2 flex-shrink-0">
                             <svg class="w-4 h-4 text-primary" :class="{ 'text-primary-content': index === highlightedIndex }" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                             </svg>
                         </span>
-                    </a>
+                    </div>
                 </li>
 
                 <!-- Add New Option (if enabled) -->
@@ -175,6 +184,11 @@ const props = defineProps({
     searchThreshold: {
         type: Number,
         default: 1
+    },
+    // New prop to control HTML rendering
+    renderHtml: {
+        type: Boolean,
+        default: true
     }
 });
 
@@ -188,6 +202,21 @@ const isOpen = ref(false);
 const searchQuery = ref('');
 const highlightedIndex = ref(-1);
 const blurTimeout = ref(null);
+
+// Methods - Define these first to avoid hoisting issues
+const stripHtmlTags = (html) => {
+    return html.replace(/<[^>]*>/g, '');
+};
+
+// Get text for searching (always strip HTML for better search experience)
+const getSearchableText = (label) => {
+    return stripHtmlTags(label);
+};
+
+// Get text for display in input field (always strip HTML for clean input display)
+const getDisplayText = (label) => {
+    return stripHtmlTags(label);
+};
 
 // Convert options object to array format
 const optionsArray = computed(() => {
@@ -210,7 +239,7 @@ const filteredOptions = computed(() => {
 
     const query = searchQuery.value.toLowerCase();
     return optionsArray.value.filter(option =>
-        option.label.toLowerCase().includes(query) ||
+        getSearchableText(option.label).toLowerCase().includes(query) ||
         option.value.toString().toLowerCase().includes(query)
     );
 });
@@ -219,7 +248,7 @@ const filteredOptions = computed(() => {
 watch(() => props.modelValue, (newValue) => {
     if (newValue && !isOpen.value) {
         const option = optionsArray.value.find(opt => opt.value == newValue);
-        searchQuery.value = option ? option.label : '';
+        searchQuery.value = option ? getDisplayText(option.label) : '';
     }
 }, { immediate: true });
 
@@ -228,7 +257,6 @@ watch(filteredOptions, () => {
     highlightedIndex.value = -1;
 });
 
-// Methods
 const handleFocus = () => {
     if (props.disabled) return;
 
@@ -248,7 +276,7 @@ const handleBlur = () => {
 
         // Restore selected option label if no selection was made
         const option = optionsArray.value.find(opt => opt.value == props.modelValue);
-        searchQuery.value = option ? option.label : '';
+        searchQuery.value = option ? getDisplayText(option.label) : '';
     }, 150);
 };
 
@@ -289,7 +317,7 @@ const handleKeyDown = (event) => {
             event.preventDefault();
             isOpen.value = false;
             const option = optionsArray.value.find(opt => opt.value == props.modelValue);
-            searchQuery.value = option ? option.label : '';
+            searchQuery.value = option ? getDisplayText(option.label) : '';
             break;
     }
 };
@@ -298,7 +326,7 @@ const selectOption = (option) => {
     if (props.disabled) return;
 
     emit('update:modelValue', option.value);
-    searchQuery.value = option.label;
+    searchQuery.value = getDisplayText(option.label);
     isOpen.value = false;
     highlightedIndex.value = -1;
 
@@ -310,7 +338,7 @@ const selectOption = (option) => {
 
 const optionExists = (query) => {
     return optionsArray.value.some(option =>
-        option.label.toLowerCase() === query.toLowerCase()
+        getSearchableText(option.label).toLowerCase() === query.toLowerCase()
     );
 };
 
@@ -326,7 +354,7 @@ const handleClickOutside = (event) => {
     if (containerRef.value && !containerRef.value.contains(event.target)) {
         isOpen.value = false;
         const option = optionsArray.value.find(opt => opt.value == props.modelValue);
-        searchQuery.value = option ? option.label : '';
+        searchQuery.value = option ? getDisplayText(option.label) : '';
     }
 };
 
