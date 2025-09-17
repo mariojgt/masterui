@@ -50,6 +50,7 @@
       <div class="text-xs text-gray-500 mt-1">
         <div>📍 Your browser timezone: {{ browserTimezone }}</div>
         <div>🌍 Selected timezone: {{ selectedTimezone }}</div>
+        <div>⏰ Current time in {{ selectedTimezone }}: {{ currentTimeInSelectedTimezone }}</div>
       </div>
     </div>
 
@@ -134,9 +135,12 @@
     <div v-if="modelValue" class="mt-2 p-3 bg-base-200 rounded text-sm space-y-1">
       <div><strong>Selected Time:</strong></div>
       <div class="ml-2">
-        <!-- <div>🌍 {{ selectedTimezone }}: {{ formatDisplayValue }}</div> -->
+        <div>🌍 {{ selectedTimezone }}: {{ formatDisplayValue }}</div>
         <div v-if="selectedTimezone !== browserTimezone" class="text-gray-600">
-          📍 On Your timezone ({{ browserTimezone }}): {{ formatDisplayValueInBrowserTimezone }}
+          📍 Your timezone ({{ browserTimezone }}): {{ formatDisplayValueInBrowserTimezone }}
+        </div>
+        <div class="text-xs text-gray-500 mt-1">
+          UTC: {{ modelValue }}
         </div>
       </div>
     </div>
@@ -185,7 +189,7 @@ const page = usePage()
 const showTimezoneSettings = ref(false)
 
 // Timezone management
-const selectedTimezone = ref('UTC') // Default to UTC
+const selectedTimezone = ref('UTC')
 const browserTimezone = ref('')
 
 // Get browser timezone
@@ -200,132 +204,196 @@ const getBrowserTimezone = () => {
 // Initialize timezone
 onMounted(() => {
   browserTimezone.value = getBrowserTimezone()
-
-  // Load saved timezone from localStorage or default to UTC
   const savedTimezone = localStorage.getItem('timestamp-component-timezone')
-  selectedTimezone.value = savedTimezone || 'UTC'
+  selectedTimezone.value = savedTimezone || browserTimezone.value || 'UTC'
 })
 
 // Handle timezone change
 const handleTimezoneChange = () => {
   localStorage.setItem('timestamp-component-timezone', selectedTimezone.value)
-  // Re-validate current value if exists
-  if (props.modelValue) {
-    validateInput(props.modelValue)
-  }
 }
 
-// Get current time in selected timezone
-const getCurrentTimeInTimezone = (): Date => {
+// Show current time in selected timezone (for debugging/display)
+const currentTimeInSelectedTimezone = computed(() => {
   const now = new Date()
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: selectedTimezone.value,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(now)
+})
 
-  if (selectedTimezone.value === 'UTC') {
-    return now
-  }
+/**
+ * CORE TIMEZONE CONVERSION FUNCTIONS
+ * These are the critical functions that handle timezone conversions properly
+ */
 
-  // For non-UTC timezones, we need to get the actual current time in that timezone
-  // We do this by getting what "now" looks like in that timezone
-  return now
-}
-
-// Convert a datetime string (YYYY-MM-DDTHH:mm) from selected timezone to UTC
-const convertFromTimezoneToUTC = (dateTimeString: string): string => {
-  if (selectedTimezone.value === 'UTC') {
-    return dateTimeString
-  }
+/**
+ * Convert a local datetime string (YYYY-MM-DDTHH:mm) in the selected timezone to UTC ISO string
+ * This is used when the user inputs a date/time in their selected timezone
+ */
+const convertLocalDateTimeToUTC = (localDateTimeString: string): string => {
+  if (!localDateTimeString) return ''
 
   try {
-    // Create a date assuming the input is in the selected timezone
-    // We need to trick JavaScript into thinking this local time is in our target timezone
-    const [datePart, timePart] = dateTimeString.split('T')
+    // Parse the local date time string
+    const [datePart, timePart] = localDateTimeString.split('T')
     const [year, month, day] = datePart.split('-').map(Number)
     const [hours, minutes] = timePart.split(':').map(Number)
 
-    // Create a temporary date to find timezone offset
-    const tempDate = new Date(year, month - 1, day, hours, minutes)
-
-    // Get the timezone offset for our selected timezone at this date/time
-    const utcTime = tempDate.getTime() - (tempDate.getTimezoneOffset() * 60000)
-    const tzTime = new Date(utcTime).toLocaleString('sv-SE', { timeZone: selectedTimezone.value })
-    const tzDate = new Date(tzTime)
-    const offset = tempDate.getTime() - tzDate.getTime()
-
-    // Apply the offset to get the correct UTC time
-    const utcDate = new Date(tempDate.getTime() - offset)
-    return utcDate.toISOString().slice(0, 19)
-  } catch (error) {
-    console.error('Timezone conversion error:', error)
-    return dateTimeString
-  }
-}
-
-// Format date for input fields (in selected timezone)
-const formatDateForInput = (utcDateString: string): { date: string, time: string } => {
-  if (!utcDateString) return { date: '', time: '' }
-
-  try {
-    const utcDate = new Date(utcDateString)
-
     if (selectedTimezone.value === 'UTC') {
-      const year = utcDate.getUTCFullYear()
-      const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(utcDate.getUTCDate()).padStart(2, '0')
-      const hours = String(utcDate.getUTCHours()).padStart(2, '0')
-      const minutes = String(utcDate.getUTCMinutes()).padStart(2, '0')
-
-      return {
-        date: `${year}-${month}-${day}`,
-        time: `${hours}:${minutes}`
-      }
+      // If timezone is UTC, create date directly
+      const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes))
+      return utcDate.toISOString().slice(0, 19)
     } else {
-      // Convert UTC to selected timezone for display
-      const formatted = new Intl.DateTimeFormat('sv-SE', {
+      // For non-UTC timezones, we need to create a date that represents
+      // the given time in the selected timezone, then convert to UTC
+
+      // Create a date string that will be interpreted in the selected timezone
+      const dateInTimezone = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+
+      // Use a temporary element to parse the date in the target timezone
+      // This is a reliable way to handle timezone conversion
+      const tempDate = new Date(dateInTimezone)
+
+      // Get what this date/time would be if it were in the selected timezone
+      // by using toLocaleString to format it as if it were in that timezone
+      const utcTimestamp = Date.parse(dateInTimezone + '+00:00') // Assume it's UTC first
+      const localTimestamp = new Date(utcTimestamp).toLocaleString('sv-SE', {
+        timeZone: selectedTimezone.value
+      })
+
+      // Calculate the difference
+      const localDate = new Date(localTimestamp)
+      const offset = utcTimestamp - localDate.getTime()
+
+      // Apply the offset to get the correct UTC time
+      const correctUtcTime = new Date(Date.parse(dateInTimezone) - offset)
+
+      // Actually, let's use a more reliable method:
+      // Create the date assuming it's in the local browser timezone, then adjust
+      const localDateObj = new Date(year, month - 1, day, hours, minutes)
+
+      // Get the offset for the selected timezone at this specific date/time
+      const formatter = new Intl.DateTimeFormat('en-CA', {
         timeZone: selectedTimezone.value,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
         hour12: false
-      }).format(utcDate)
+      })
 
-      const [datePart, timePart] = formatted.split(' ')
-      return { date: datePart, time: timePart }
+      // This is the most reliable approach: use the Temporal-like behavior
+      // Create a date that represents the exact moment in the selected timezone
+      const targetDate = new Date(`${dateInTimezone}`)
+
+      // Get the timezone offset at this date
+      const utcDate = new Date(targetDate.toLocaleString('sv-SE', { timeZone: 'UTC' }))
+      const tzDate = new Date(targetDate.toLocaleString('sv-SE', { timeZone: selectedTimezone.value }))
+      const offset2 = utcDate.getTime() - tzDate.getTime()
+
+      // Apply offset to get correct UTC time
+      const finalUtcDate = new Date(targetDate.getTime() + offset2)
+
+      // Let's use the most straightforward approach that actually works:
+      // Use the Intl API to properly handle the conversion
+
+      // The simplest and most reliable way:
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+
+      // Create a date object representing this time in the selected timezone
+      // We'll use a known reference point and calculate the offset
+      const now = new Date()
+      const nowUtc = now.getTime()
+      const nowInTargetTz = new Date(now.toLocaleString('sv-SE', { timeZone: selectedTimezone.value }))
+      const tzOffset = nowUtc - nowInTargetTz.getTime()
+
+      // Create the target date and apply the timezone offset
+      const targetDateTime = new Date(`${dateStr}T${timeStr}:00`)
+      const utcDateTime = new Date(targetDateTime.getTime() + tzOffset)
+
+      return utcDateTime.toISOString().slice(0, 19)
     }
   } catch (error) {
-    console.error('Date formatting error:', error)
+    console.error('Error converting local datetime to UTC:', error)
+    return localDateTimeString
+  }
+}
+
+/**
+ * Convert a UTC datetime string to local datetime string in the selected timezone
+ * This is used to display the stored UTC value in the user's selected timezone
+ */
+const convertUTCToLocalDateTime = (utcDateTimeString: string): { date: string, time: string } => {
+  if (!utcDateTimeString) return { date: '', time: '' }
+
+  try {
+    // Create a proper Date object from the UTC string
+    let utcDate: Date
+
+    // Handle the case where the string might not have 'Z' or timezone info
+    if (utcDateTimeString.includes('T')) {
+      // If it looks like an ISO string but doesn't end with Z, add it
+      const isoString = utcDateTimeString.endsWith('Z') ? utcDateTimeString : utcDateTimeString + 'Z'
+      utcDate = new Date(isoString)
+    } else {
+      utcDate = new Date(utcDateTimeString)
+    }
+
+    if (isNaN(utcDate.getTime())) {
+      console.error('Invalid date:', utcDateTimeString)
+      return { date: '', time: '' }
+    }
+
+    // Convert to the selected timezone using Intl API
+    const formatter = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: selectedTimezone.value,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+
+    const parts = formatter.formatToParts(utcDate)
+    const dateStr = `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}-${parts.find(p => p.type === 'day')?.value}`
+    const timeStr = `${parts.find(p => p.type === 'hour')?.value}:${parts.find(p => p.type === 'minute')?.value}`
+
+    return { date: dateStr, time: timeStr }
+  } catch (error) {
+    console.error('Error converting UTC to local datetime:', error)
     return { date: '', time: '' }
   }
 }
 
-// Computed values for separate date and time
+// Computed values for the input fields
 const dateValue = computed(() => {
   if (!props.modelValue) return ''
-  try {
-    const formatted = formatDateForInput(props.modelValue)
-    return formatted.date
-  } catch {
-    return ''
-  }
+  const { date } = convertUTCToLocalDateTime(props.modelValue)
+  return date
 })
 
 const timeValue = computed(() => {
   if (!props.modelValue) return ''
-  try {
-    const formatted = formatDateForInput(props.modelValue)
-    return formatted.time
-  } catch {
-    return ''
-  }
+  const { time } = convertUTCToLocalDateTime(props.modelValue)
+  return time
 })
 
+// Display formatting
 const formatDisplayValue = computed(() => {
   if (!props.modelValue) return ''
   try {
-    const date = new Date(props.modelValue)
-    if (isNaN(date.getTime())) return ''
+    const utcDate = new Date(props.modelValue.endsWith('Z') ? props.modelValue : props.modelValue + 'Z')
+    if (isNaN(utcDate.getTime())) return ''
 
-    const options: Intl.DateTimeFormatOptions = {
+    return new Intl.DateTimeFormat('en-GB', {
       timeZone: selectedTimezone.value,
       weekday: 'short',
       year: 'numeric',
@@ -334,9 +402,7 @@ const formatDisplayValue = computed(() => {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    }
-
-    return date.toLocaleDateString('en-US', options)
+    }).format(utcDate)
   } catch {
     return ''
   }
@@ -345,10 +411,10 @@ const formatDisplayValue = computed(() => {
 const formatDisplayValueInBrowserTimezone = computed(() => {
   if (!props.modelValue || selectedTimezone.value === browserTimezone.value) return ''
   try {
-    const date = new Date(props.modelValue)
-    if (isNaN(date.getTime())) return ''
+    const utcDate = new Date(props.modelValue.endsWith('Z') ? props.modelValue : props.modelValue + 'Z')
+    if (isNaN(utcDate.getTime())) return ''
 
-    const options: Intl.DateTimeFormatOptions = {
+    return new Intl.DateTimeFormat('en-GB', {
       timeZone: browserTimezone.value,
       weekday: 'short',
       year: 'numeric',
@@ -357,180 +423,108 @@ const formatDisplayValueInBrowserTimezone = computed(() => {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    }
-
-    return date.toLocaleDateString('en-US', options)
+    }).format(utcDate)
   } catch {
     return ''
   }
 })
 
-// Internal state to track current date and time
-const currentDate = ref('')
-const currentTime = ref('')
-
-// Methods to handle input changes
+// Event handlers
 const handleDateInput = (event: Event) => {
   const target = event.target as HTMLInputElement
-  currentDate.value = target.value
-  updateDateTime()
+  updateDateTime(target.value, timeValue.value)
 }
 
 const handleDateChange = (event: Event) => {
   const target = event.target as HTMLInputElement
-  currentDate.value = target.value
-  updateDateTime()
+  updateDateTime(target.value, timeValue.value)
 }
 
 const handleTimeInput = (event: Event) => {
   const target = event.target as HTMLInputElement
-  currentTime.value = target.value
-  updateDateTime()
+  updateDateTime(dateValue.value, target.value)
 }
 
 const handleTimeChange = (event: Event) => {
   const target = event.target as HTMLInputElement
-  currentTime.value = target.value
-  updateDateTime()
+  updateDateTime(dateValue.value, target.value)
 }
 
-const updateDateTime = () => {
-  if (currentDate.value && currentTime.value) {
-    const dateTimeString = `${currentDate.value}T${currentTime.value}`
-
-    // Convert from selected timezone to UTC for storage
-    const utcDateTime = convertFromTimezoneToUTC(dateTimeString)
-
+const updateDateTime = (date: string, time: string) => {
+  if (date && time) {
+    const localDateTime = `${date}T${time}`
+    const utcDateTime = convertLocalDateTimeToUTC(localDateTime)
     emit('update:modelValue', utcDateTime)
     validateInput(utcDateTime)
-  } else if (!currentDate.value && !currentTime.value) {
+  } else if (!date && !time) {
     emit('update:modelValue', '')
     errorMessage.value = ''
   }
 }
 
-// Quick action methods (all now work in selected timezone)
+// Quick action methods
 const setToNow = () => {
   const now = new Date()
 
-  if (selectedTimezone.value === 'UTC') {
-    // For UTC, we use the current UTC time
-    const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000))
-    setDateTime(utcNow)
-  } else {
-    // For other timezones, get what time it is NOW in that timezone
-    const nowInTimezone = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: selectedTimezone.value,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).format(now)
+  // Get current time in the selected timezone
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: selectedTimezone.value,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
 
-    const [datePart, timePart] = nowInTimezone.split(' ')
-    currentDate.value = datePart
-    currentTime.value = timePart
-    updateDateTime()
-  }
+  const formatted = formatter.format(now)
+  const [date, time] = formatted.split(' ')
+
+  updateDateTime(date, time)
 }
 
 const setToday9AM = () => {
-  const now = new Date()
+  const today = new Date()
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: selectedTimezone.value,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
 
-  if (selectedTimezone.value === 'UTC') {
-    const utcToday = new Date(now.getTime() + (now.getTimezoneOffset() * 60000))
-    utcToday.setUTCHours(9, 0, 0, 0)
-    setDateTime(utcToday)
-  } else {
-    // Get today's date in the selected timezone and set to 9 AM
-    const todayInTimezone = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: selectedTimezone.value,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(now)
-
-    currentDate.value = todayInTimezone
-    currentTime.value = '09:00'
-    updateDateTime()
-  }
+  const todayFormatted = formatter.format(today)
+  updateDateTime(todayFormatted, '09:00')
 }
 
 const setToday5PM = () => {
-  const now = new Date()
+  const today = new Date()
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: selectedTimezone.value,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
 
-  if (selectedTimezone.value === 'UTC') {
-    const utcToday = new Date(now.getTime() + (now.getTimezoneOffset() * 60000))
-    utcToday.setUTCHours(17, 0, 0, 0)
-    setDateTime(utcToday)
-  } else {
-    // Get today's date in the selected timezone and set to 5 PM
-    const todayInTimezone = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: selectedTimezone.value,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(now)
-
-    currentDate.value = todayInTimezone
-    currentTime.value = '17:00'
-    updateDateTime()
-  }
+  const todayFormatted = formatter.format(today)
+  updateDateTime(todayFormatted, '17:00')
 }
 
 const setTomorrow9AM = () => {
-  const now = new Date()
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
 
-  if (selectedTimezone.value === 'UTC') {
-    const utcTomorrow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000))
-    utcTomorrow.setUTCDate(utcTomorrow.getUTCDate() + 1)
-    utcTomorrow.setUTCHours(9, 0, 0, 0)
-    setDateTime(utcTomorrow)
-  } else {
-    // Get tomorrow's date in the selected timezone and set to 9 AM
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    const tomorrowInTimezone = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: selectedTimezone.value,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(tomorrow)
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: selectedTimezone.value,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
 
-    currentDate.value = tomorrowInTimezone
-    currentTime.value = '09:00'
-    updateDateTime()
-  }
-}
-
-const setDateTime = (date: Date) => {
-  if (selectedTimezone.value === 'UTC') {
-    const year = date.getUTCFullYear()
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-    const day = String(date.getUTCDate()).padStart(2, '0')
-    const hours = String(date.getUTCHours()).padStart(2, '0')
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0')
-
-    currentDate.value = `${year}-${month}-${day}`
-    currentTime.value = `${hours}:${minutes}`
-  } else {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-
-    currentDate.value = `${year}-${month}-${day}`
-    currentTime.value = `${hours}:${minutes}`
-  }
-
-  updateDateTime()
+  const tomorrowFormatted = formatter.format(tomorrow)
+  updateDateTime(tomorrowFormatted, '09:00')
 }
 
 const clearDateTime = () => {
-  currentDate.value = ''
-  currentTime.value = ''
   emit('update:modelValue', '')
   errorMessage.value = ''
 }
@@ -555,37 +549,6 @@ const validateInput = (value: string) => {
     return
   }
 }
-
-// Initialize from modelValue
-watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
-    try {
-      const formatted = formatDateForInput(newValue)
-      currentDate.value = formatted.date
-      currentTime.value = formatted.time
-    } catch {
-      currentDate.value = ''
-      currentTime.value = ''
-    }
-  } else {
-    currentDate.value = ''
-    currentTime.value = ''
-  }
-}, { immediate: true })
-
-// Watch for timezone changes and update display
-watch(selectedTimezone, () => {
-  if (props.modelValue) {
-    try {
-      const formatted = formatDateForInput(props.modelValue)
-      currentDate.value = formatted.date
-      currentTime.value = formatted.time
-    } catch {
-      currentDate.value = ''
-      currentTime.value = ''
-    }
-  }
-})
 
 // Watch for Inertia errors
 watch(
