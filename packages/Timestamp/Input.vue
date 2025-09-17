@@ -65,6 +65,7 @@
           @input="handleDateInput"
           @change="handleDateChange"
           :required="required"
+          @click="handleInputClick"
           :class="[
             'input input-bordered w-full',
             errorMessage ? 'input-error' : 'focus:input-primary'
@@ -81,6 +82,7 @@
           :value="timeValue"
           @input="handleTimeInput"
           @change="handleTimeChange"
+          @click="handleInputClick"
           :class="[
             'input input-bordered w-full',
             errorMessage ? 'input-error' : 'focus:input-primary'
@@ -547,6 +549,14 @@ const validateInput = (value: string) => {
     const maxDate = new Date(props.max)
     errorMessage.value = `Date must be before ${maxDate.toLocaleDateString()}`
     return
+  }
+}
+
+// NEW: Handle input click to auto-fill with current time if empty
+const handleInputClick = () => {
+  // Only trigger setToNow if there's no value currently set
+  if (!props.modelValue || props.modelValue.trim() === '') {
+    setToNow()
   }
 }
 
