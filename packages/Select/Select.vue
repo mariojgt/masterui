@@ -9,11 +9,11 @@
       :id="id"
       :name="name"
       :class="['select select-bordered w-full', selectClass, { 'select-error': $page.props.errors?.[name] || (required && !modelValue) }]"
-      :value="modelValue"
+      :value="normalizedValue"
       :required="required"
       @input="update"
     >
-      <option v-for="(item, index) in options" :key="index" :value="index">
+      <option v-for="(item, key) in options" :key="key" :value="key">
         {{ item }}
       </option>
     </select>
@@ -26,12 +26,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 interface SelectProps {
   label?: string;
   name: string;
   id: string;
-  options: Record<string, string>;
-  modelValue: string | number;
+  options: Record<string | number, string>;
+  modelValue: string | number | null;
   selectClass?: string;
   required?: boolean;
 }
@@ -44,8 +46,26 @@ const props = withDefaults(defineProps<SelectProps>(), {
 
 const emit = defineEmits(["update:modelValue"]);
 
+// Ensure the current value exists in options, otherwise use the first available option or null
+const normalizedValue = computed(() => {
+  if (props.modelValue !== null && props.modelValue !== undefined && props.modelValue !== '') {
+    // Check if the current value exists in the options
+    if (Object.prototype.hasOwnProperty.call(props.options, props.modelValue)) {
+      return props.modelValue;
+    }
+  }
+  return props.modelValue;
+});
+
 const update = (event: Event) => {
   const target = event.target as HTMLSelectElement;
-  emit("update:modelValue", target.value);
+  const value = target.value;
+
+  // Convert to number if the original modelValue was a number
+  if (typeof props.modelValue === 'number' && !isNaN(Number(value))) {
+    emit("update:modelValue", Number(value));
+  } else {
+    emit("update:modelValue", value);
+  }
 };
 </script>
