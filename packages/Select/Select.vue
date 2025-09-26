@@ -9,12 +9,19 @@
       :id="id"
       :name="name"
       :class="['select select-bordered w-full', selectClass, { 'select-error': $page.props.errors?.[name] || (required && !modelValue) }]"
-      :value="normalizedValue"
+      :value="modelValue"
       :required="required"
       @input="update"
     >
-      <option v-for="(item, key) in options" :key="key" :value="key">
-        {{ item }}
+      <option value="" v-if="!required || !modelValue">
+        {{ placeholder || 'Select an option...' }}
+      </option>
+      <option
+        v-for="option in processedOptions"
+        :key="option.key"
+        :value="option.key"
+      >
+        {{ option.label }}
       </option>
     </select>
     <div v-if="$page.props.errors?.[name] || (required && !modelValue)" class="label">
@@ -28,6 +35,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+interface SelectOption {
+  key: string | number;
+  label: string;
+}
+
 interface SelectProps {
   label?: string;
   name: string;
@@ -36,33 +48,52 @@ interface SelectProps {
   modelValue: string | number | null;
   selectClass?: string;
   required?: boolean;
+  sortBy?: boolean;
+  placeholder?: string;
 }
 
 const props = withDefaults(defineProps<SelectProps>(), {
   label: '',
   selectClass: '',
-  required: false
+  required: false,
+  sortBy: false,
+  placeholder: '',
+  modelValue: null
 });
 
-const emit = defineEmits(["update:modelValue"]);
+const emit = defineEmits<{
+  'update:modelValue': [value: string | number | null];
+}>();
 
-// Ensure the current value exists in options, otherwise use the first available option or null
-const normalizedValue = computed(() => {
-  if (props.modelValue !== null && props.modelValue !== undefined && props.modelValue !== '') {
-    // Check if the current value exists in the options
-    if (Object.prototype.hasOwnProperty.call(props.options, props.modelValue)) {
-      return props.modelValue;
-    }
+// Process options with optional sorting while preserving original keys
+const processedOptions = computed((): SelectOption[] => {
+  const optionsArray: SelectOption[] = Object.entries(props.options).map(([key, value]) => ({
+    key: key,
+    label: value
+  }));
+
+  if (props.sortBy) {
+    // Sort by label alphabetically (case-insensitive)
+    return optionsArray.sort((a, b) =>
+      a.label.toLowerCase().localeCompare(b.label.toLowerCase())
+    );
   }
-  return props.modelValue;
+
+  return optionsArray;
 });
 
 const update = (event: Event) => {
   const target = event.target as HTMLSelectElement;
   const value = target.value;
 
-  // Convert to number if the original modelValue was a number
-  if (typeof props.modelValue === 'number' && !isNaN(Number(value))) {
+  if (value === '') {
+    emit("update:modelValue", null);
+    return;
+  }
+
+  // Check if the original key was numeric
+  const originalKey = Object.keys(props.options).find(key => key === value);
+  if (originalKey && !isNaN(Number(originalKey))) {
     emit("update:modelValue", Number(value));
   } else {
     emit("update:modelValue", value);
