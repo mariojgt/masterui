@@ -7,27 +7,27 @@
     </label>
 
     <!-- Timezone Settings Toggle -->
-    <div class="mb-3">
+    <div class="mb-2">
       <button
         type="button"
         @click="showTimezoneSettings = !showTimezoneSettings"
-        class="btn btn-sm btn-outline btn-ghost flex items-center gap-2"
+        class="btn btn-xs btn-ghost flex items-center gap-1"
       >
-        <span class="text-xs">⚙️ Timezone Settings</span>
+        <span class="text-xs">⚙️ Timezone</span>
         <span class="text-xs">{{ showTimezoneSettings ? '▼' : '▶️' }}</span>
         <span class="badge badge-xs badge-primary">{{ selectedTimezone }}</span>
       </button>
     </div>
 
     <!-- Timezone Selector (Collapsible) -->
-    <div v-show="showTimezoneSettings" class="mb-4 bg-base-100 p-3 rounded-lg border border-base-300">
-      <label class="label">
-        <span class="label-text font-semibold">Timezone</span>
+    <div v-show="showTimezoneSettings" class="mb-3 bg-base-100 p-2 rounded-lg border border-base-300">
+      <label class="label py-1">
+        <span class="label-text text-xs font-medium">Timezone</span>
       </label>
       <select
         v-model="selectedTimezone"
         @change="handleTimezoneChange"
-        class="select select-bordered w-full"
+        class="select select-bordered select-sm w-full"
       >
         <option value="UTC">UTC+0 (Coordinated Universal Time)</option>
         <option :value="browserTimezone" v-if="browserTimezone && browserTimezone !== 'UTC'">
@@ -47,54 +47,66 @@
         <option value="Asia/Dubai">UTC+4 (Dubai)</option>
         <option value="Australia/Sydney">UTC+10/+11 (Sydney)</option>
       </select>
-      <div class="text-xs text-gray-500 mt-1">
-        <div>📍 Your browser timezone: {{ browserTimezone }}</div>
-        <div>🌍 Selected timezone: {{ selectedTimezone }}</div>
-        <div>⏰ Current time in {{ selectedTimezone }}: {{ currentTimeInSelectedTimezone }}</div>
+      <div class="text-[10px] text-gray-500 mt-1 space-y-0.5">
+        <div>📍 Browser: {{ browserTimezone }}</div>
+        <div>🌍 Selected: {{ selectedTimezone }}</div>
+        <div>⏰ Current: {{ currentTimeInSelectedTimezone }}</div>
       </div>
     </div>
 
-    <!-- Date and Time Inputs -->
-    <div class="grid grid-cols-2 gap-3">
-      <!-- Date Input -->
-      <div class="relative">
-        <input
-          :id="id + '_date'"
-          type="date"
-          :value="dateValue"
-          @input="handleDateInput"
-          @change="handleDateChange"
-          :required="required"
-          @click="handleInputClick"
-          :class="[
-            'input input-bordered w-full',
-            errorMessage ? 'input-error' : 'focus:input-primary'
-          ]"
-        />
-        <label class="text-xs text-gray-500 mt-1">Date ({{ selectedTimezone }})</label>
+    <!-- Date and Time Inputs with Quick Actions Toggle -->
+    <div class="flex items-end gap-2 mb-2">
+      <div class="grid grid-cols-2 gap-3 flex-1">
+        <!-- Date Input -->
+        <div class="relative">
+          <input
+            :id="id + '_date'"
+            type="date"
+            :value="dateValue"
+            @input="handleDateInput"
+            @change="handleDateChange"
+            :required="required"
+            @click="handleInputClick"
+            :class="[
+              'input input-bordered w-full',
+              errorMessage ? 'input-error' : 'focus:input-primary'
+            ]"
+          />
+          <label class="text-xs text-gray-500 mt-1">Date ({{ selectedTimezone }})</label>
+        </div>
+
+        <!-- Time Input -->
+        <div class="relative">
+          <input
+            :id="id + '_time'"
+            type="time"
+            :value="timeValue"
+            @input="handleTimeInput"
+            @change="handleTimeChange"
+            @click="handleInputClick"
+            :class="[
+              'input input-bordered w-full',
+              errorMessage ? 'input-error' : 'focus:input-primary'
+            ]"
+            step="900"
+          />
+          <label class="text-xs text-gray-500 mt-1">Time ({{ selectedTimezone }})</label>
+        </div>
       </div>
 
-      <!-- Time Input -->
-      <div class="relative">
-        <input
-          :id="id + '_time'"
-          type="time"
-          :value="timeValue"
-          @input="handleTimeInput"
-          @change="handleTimeChange"
-          @click="handleInputClick"
-          :class="[
-            'input input-bordered w-full',
-            errorMessage ? 'input-error' : 'focus:input-primary'
-          ]"
-          step="900"
-        />
-        <label class="text-xs text-gray-500 mt-1">Time ({{ selectedTimezone }})</label>
-      </div>
+      <!-- Toggle Quick Actions Button -->
+      <button
+        type="button"
+        @click="showQuickActions = !showQuickActions"
+        class="btn btn-xs btn-ghost btn-circle mb-6"
+        :title="showQuickActions ? 'Hide quick actions' : 'Show quick actions'"
+      >
+        {{ showQuickActions ? '▲' : '▼' }}
+      </button>
     </div>
 
-    <!-- Quick Action Buttons -->
-    <div class="flex gap-2 mt-3 flex-wrap">
+    <!-- Quick Action Buttons (Collapsible) -->
+    <div v-show="showQuickActions" class="flex gap-2 mt-1 flex-wrap">
       <button
         type="button"
         @click="setToNow"
@@ -133,8 +145,8 @@
       </button>
     </div>
 
-    <!-- Display Current Selection -->
-    <div v-if="modelValue" class="mt-2 p-3 bg-base-200 rounded text-sm space-y-1">
+    <!-- Display Current Selection (Collapsible) -->
+    <div v-if="modelValue && showQuickActions" class="mt-2 p-3 bg-base-200 rounded text-sm space-y-1">
       <div><strong>Selected Time:</strong></div>
       <div class="ml-2">
         <div>🌍 {{ selectedTimezone }}: {{ formatDisplayValue }}</div>
@@ -189,6 +201,9 @@ const page = usePage()
 
 // Timezone visibility toggle
 const showTimezoneSettings = ref(false)
+
+// Quick actions visibility toggle
+const showQuickActions = ref(false)
 
 // Timezone management
 const selectedTimezone = ref('UTC')
