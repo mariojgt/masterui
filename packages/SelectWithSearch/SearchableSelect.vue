@@ -138,7 +138,7 @@ const props = defineProps({
         default: ''
     },
     options: {
-        type: Object,
+        type: [Object, Array],
         default: () => ({})
     },
     label: {
@@ -189,6 +189,11 @@ const props = defineProps({
     renderHtml: {
         type: Boolean,
         default: true
+    },
+    // New prop to disable sorting
+    sortBy: {
+        type: Boolean,
+        default: true
     }
 });
 
@@ -220,10 +225,29 @@ const getDisplayText = (label) => {
 
 // Convert options object to array format
 const optionsArray = computed(() => {
-    return Object.entries(props.options).map(([value, label]) => ({
-        value,
-        label: String(label)
-    })).filter(option => option.value !== ''); // Filter out empty options
+    // If options is already an array, use it directly (preserves order)
+    if (Array.isArray(props.options)) {
+        return props.options
+            .filter(option =>
+                option &&
+                typeof option === 'object' &&
+                option.value !== undefined &&
+                option.value !== '' &&
+                option.label !== undefined
+            )
+            .map(option => ({
+                value: String(option.value),
+                label: String(option.label)
+            }));
+    }
+
+    // Otherwise convert object to array (legacy support)
+    return Object.entries(props.options)
+        .map(([value, label]) => ({
+            value: String(value),
+            label: String(label)
+        }))
+        .filter(option => option.value !== ''); // Filter out empty options
 });
 
 // Get currently selected option
@@ -249,6 +273,9 @@ watch(() => props.modelValue, (newValue) => {
     if (newValue && !isOpen.value) {
         const option = optionsArray.value.find(opt => opt.value == newValue);
         searchQuery.value = option ? getDisplayText(option.label) : '';
+    } else if (!newValue && !isOpen.value) {
+        // Clear the search query if no value is selected
+        searchQuery.value = '';
     }
 }, { immediate: true });
 
